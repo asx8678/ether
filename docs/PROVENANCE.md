@@ -14,3 +14,4 @@ Applied to every copied crate (see `DECISIONS.md`):
 | `rust-toolchain.toml`, `rustfmt.toml` | `codex-rs/rust-toolchain.toml`, `codex-rs/rustfmt.toml` | none |
 | `clippy.toml` | `codex-rs/clippy.toml` | removed the sqlx rules |
 | `Cargo.toml` | `codex-rs/Cargo.toml` | trimmed to the copied crates; only the `dev` and `release` profiles; only the crossterm patch |
+| `crates/utils/absolute-path` (`codex-utils-absolute-path`) | `codex-rs/utils/absolute-path` | unit tests stripped from 3 file(s), 1 test file(s) deleted; Windows-only code stripped from 1 file(s); manifest: removed `[dev-dependencies]` |
