@@ -1,0 +1,17 @@
+# Modified from OpenAI Codex (codex-rs/utils/path-utils/Cargo.toml @ 806d973): removed Windows-only dependencies, dev-dependencies.
+[package]
+edition.workspace = true
+license.workspace = true
+name = "codex-utils-path"
+version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+codex-utils-absolute-path = { workspace = true }
+dunce = { workspace = true }
+tempfile = { workspace = true }
+
+[lib]
+doctest = false

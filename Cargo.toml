@@ -17,6 +17,7 @@ members = [
     "crates/utils/pty",
     "crates/utils/path-uri",
     "crates/utils/home-dir",
+    "crates/utils/path-utils",
 ]
 resolver = "2"
 
@@ -43,6 +44,7 @@ codex-bwrap = { path = "crates/bwrap" }
 codex-utils-pty = { path = "crates/utils/pty" }
 codex-utils-path-uri = { path = "crates/utils/path-uri" }
 codex-utils-home-dir = { path = "crates/utils/home-dir" }
+codex-utils-path = { path = "crates/utils/path-utils" }
 
 # External crates, with the same specs as Codex's workspace.
 ansi-to-tui = "8.0.1"
@@ -68,6 +70,7 @@ schemars = "0.8.22"
 serde = { version = "1", features = ["rc"] }
 serde_json = "1"
 sha1 = "0.10.6"
+tempfile = "3.23.0"
 thiserror = "2.0.17"
 tokio = "1"
 tokio-util = "0.7.18"

@@ -23,3 +23,4 @@ These apply to every crate and are only listed per crate when something besides 
 | `codex-utils-pty` | dev-dependencies: `codex-utils-cargo-bin`, `ctor`, `tempfile`, `pretty_assertions`; Windows dependencies: `filedescriptor`, `lazy_static`, `log`, `shared_library`, `winapi`; modules: `src/win/conpty.rs`, `src/win/job.rs`, `src/win/mod.rs`, `src/win/procthreadattr.rs`, `src/win/psuedocon.rs`, `src/windows_input.rs` | deleted from the manifest; unreachable module files deleted |
 | `codex-utils-path-uri` | dev-dependencies: `pretty_assertions`, `serde_json` | deleted from the manifest |
 | `codex-utils-home-dir` | dev-dependencies: `pretty_assertions`, `tempfile` | deleted from the manifest |
+| `codex-utils-path` | Windows dependencies: `windows-sys`; dev-dependencies: `pretty_assertions`, `tempfile` | deleted from the manifest |
