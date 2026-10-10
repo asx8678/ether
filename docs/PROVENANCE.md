@@ -17,5 +17,6 @@ Applied to every copied crate (see `DECISIONS.md`):
 | `crates/utils/absolute-path` (`codex-utils-absolute-path`) | `codex-rs/utils/absolute-path` | unit tests stripped from 3 file(s), 1 test file(s) deleted; Windows-only code stripped from 1 file(s); manifest: removed `[dev-dependencies]` |
 | `crates/utils/string` (`codex-utils-string`) | `codex-rs/utils/string` | unit tests stripped from 3 file(s), 1 test file(s) deleted; manifest: removed `[dev-dependencies]` |
 | `crates/utils/stream-parser` (`codex-utils-stream-parser`) | `codex-rs/utils/stream-parser` | unit tests stripped from 6 file(s), 0 test file(s) deleted; manifest: removed `[dev-dependencies]` |
-| `crates/utils/fuzzy-match` (`codex-utils-fuzzy-match`) | `codex-rs/utils/fuzzy-match` | unit tests stripped from 1 file(s), 0 test file(s) deleted; manifest: removed `undefined` |
+| `crates/utils/fuzzy-match` (`codex-utils-fuzzy-match`) | `codex-rs/utils/fuzzy-match` | unit tests stripped from 1 file(s), 0 test file(s) deleted |
 | `crates/utils/cache` (`codex-utils-cache`) | `codex-rs/utils/cache` | unit tests stripped from 1 file(s), 1 test file(s) deleted; manifest: removed `[dev-dependencies]` |
+| `crates/utils/process` (`codex-utils-process`) | `codex-rs/utils/process` | unit tests stripped from 1 file(s), 1 test file(s) deleted; Windows-only code stripped from 1 file(s); manifest: removed `[dev-dependencies]` |

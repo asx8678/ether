@@ -54,6 +54,10 @@ name = "codex-utils-fuzzy-match"
 version = "0.0.0"
 
 [[package]]
+name = "codex-utils-process"
+version = "0.0.0"
+
+[[package]]
 name = "codex-utils-stream-parser"
 version = "0.0.0"
 
