@@ -74,20 +74,24 @@
   }
 
   // <x-table>| a | b |\n|---|---|\n| 1 | 2 |</x-table>: a markdown table, styled, with numeric
-  // columns right-aligned (about half the tokens of <table> markup).
+  // columns right-aligned (about half the tokens of <table> markup). Cells keep `code` and
+  // **bold**; everything else in them is text.
+  const inline = (text) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  const plain = (text) => text.replace(/[`*]/g, '');
   for (const source of document.querySelectorAll('x-table')) {
     const rows = source.textContent.split('\n').map((line) => line.trim()).filter((line) => line.includes('|'))
       .filter((line) => !/^\|?\s*:?-{2,}/.test(line))
       .map((line) => line.replace(/^\|/, '').replace(/\|$/, '').split('|').map((cell) => cell.trim()));
     const table = el('table');
     if (rows.length) {
-      const numeric = rows[0].map((_, col) => rows.length > 1 && rows.slice(1).every((row) => /^[-+]?[\d.,]+\s*[%kKMGTB]*\w{0,3}$/.test(row[col] ?? '')));
+      const numeric = rows[0].map((_, col) => rows.length > 1 && rows.slice(1).every((row) => /^[-+]?[\d.,]+\s*[%kKMGTB]*\w{0,3}$/.test(plain(row[col] ?? ''))));
       const head = table.appendChild(el('thead')).appendChild(el('tr'));
-      rows[0].forEach((cell, col) => { const th = head.appendChild(el('th', numeric[col] ? 'num' : null, cell)); });
+      rows[0].forEach((cell, col) => { head.appendChild(el('th', numeric[col] ? 'num' : null, plain(cell))); });
       const body = table.appendChild(el('tbody'));
       for (const row of rows.slice(1)) {
         const tr = body.appendChild(el('tr'));
-        rows[0].forEach((_, col) => tr.appendChild(el('td', numeric[col] ? 'num' : null, row[col] ?? '')));
+        rows[0].forEach((_, col) => { tr.appendChild(el('td', numeric[col] ? 'num' : null)).innerHTML = inline(row[col] ?? ''); });
       }
     }
     source.replaceWith(table);
