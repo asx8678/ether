@@ -26,6 +26,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "codex-utils-stream-parser"
+version = "0.0.0"
+
+[[package]]
 name = "codex-utils-string"
 version = "0.0.0"
 dependencies = [

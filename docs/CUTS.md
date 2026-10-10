@@ -12,3 +12,4 @@ These apply to every crate and are only listed per crate when something besides 
 |---|---|---|
 | `codex-utils-absolute-path` | dev-dependencies: `pretty_assertions`, `serde_json`, `tempfile` | deleted from the manifest |
 | `codex-utils-string` | dev-dependencies: `pretty_assertions` | deleted from the manifest |
+| `codex-utils-stream-parser` | dev-dependencies: `pretty_assertions` | deleted from the manifest |
