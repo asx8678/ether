@@ -26,6 +26,7 @@ members = [
     "crates/file-system",
     "crates/shell-command",
     "crates/history",
+    "crates/context-fragments",
 ]
 resolver = "2"
 
@@ -61,6 +62,7 @@ codex-utils-output-truncation = { path = "crates/utils/output-truncation" }
 codex-file-system = { path = "crates/file-system" }
 codex-shell-command = { path = "crates/shell-command" }
 codex-history = { path = "crates/history" }
+codex-context-fragments = { path = "crates/context-fragments" }
 
 # External crates, with the same specs as Codex's workspace.
 ansi-to-tui = "8.0.1"

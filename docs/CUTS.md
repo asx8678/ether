@@ -34,3 +34,4 @@ These apply to every crate and are only listed per crate when something besides 
 | `codex-file-system` (local impl from exec-server) | `SandboxedFileSystem` (helper-process filesystem), `ExecServerRuntimeOptions` | removed; `LocalFileSystem` always uses the direct implementation and drops the sandbox context, which the copied direct implementation would otherwise reject |
 | `codex-shell-command` | dev-dependencies: `anyhow`, `pretty_assertions`, `tempfile`; modules: `src/command_safety/powershell_parser.rs` | deleted from the manifest; unreachable module files deleted |
 | `codex-history` | dev-dependencies: `anyhow`, `pretty_assertions` | deleted from the manifest |
+| `codex-context-fragments` | dev-dependencies: `pretty_assertions` | deleted from the manifest |

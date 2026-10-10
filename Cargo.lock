@@ -498,6 +498,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "codex-context-fragments"
+version = "0.0.0"
+dependencies = [
+ "codex-protocol",
+ "codex-utils-string",
+ "serde_json",
+]
+
+[[package]]
 name = "codex-execpolicy"
 version = "0.0.0"
 dependencies = [

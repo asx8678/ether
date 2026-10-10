@@ -1,0 +1,19 @@
+# Modified from OpenAI Codex (codex-rs/context-fragments/Cargo.toml @ 806d973): removed dev-dependencies.
+[package]
+edition.workspace = true
+license.workspace = true
+name = "codex-context-fragments"
+version.workspace = true
+
+[lib]
+name = "codex_context_fragments"
+path = "src/lib.rs"
+doctest = false
+
+[lints]
+workspace = true
+
+[dependencies]
+codex-protocol = { workspace = true }
+codex-utils-string = { workspace = true }
+serde_json = { workspace = true }
