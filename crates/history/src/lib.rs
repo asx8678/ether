@@ -1,4 +1,4 @@
-// Modified from OpenAI Codex (codex-rs/history/src/lib.rs @ 806d973): removed unit tests; realtime types removed.
+// Modified from OpenAI Codex (codex-rs/history/src/lib.rs @ 806d973): removed unit tests; realtime types removed; guardian types removed.
 //! Model-history and persisted-rollout domain types.
 
 mod heartbeat;
@@ -65,22 +65,6 @@ pub struct ResponseItemEnvelope {
 ///
 #[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Eq, JsonSchema)]
 pub struct CodexHarnessMetadata {
-    /// Complete retained records actually delivered by this Guardian message. Host-only.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub guardian_sources: Vec<RetainedSource>,
-
-    /// Completed sync reviews delivered by this complete Guardian message. Host-only.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub guardian_review_ids: Vec<codex_protocol::ResponseItemId>,
-
-    /// This complete message delivered the meaning of retained source-order labels.
-    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
-    pub guardian_source_order_guidance: bool,
-
-    /// Section-scoped omission delivery proof; None means unknown, not complete.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub guardian_retained_omissions: Option<GuardianRetainedOmissions>,
-
     /// Original retained evidence represented by this exact history item.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub retained_source: Option<RetainedSource>,
@@ -157,13 +141,7 @@ where
 impl CodexHarnessMetadata {
     /// Shortened messages no longer prove complete instruction or review delivery.
     pub fn mark_retained_sources_incomplete(&mut self) {
-        self.guardian_review_ids.clear();
-        self.guardian_source_order_guidance = false;
-        self.guardian_retained_omissions = None;
         if let Some(source) = &mut self.retained_source {
-            source.complete = false;
-        }
-        for source in &mut self.guardian_sources {
             source.complete = false;
         }
     }
@@ -216,9 +194,7 @@ pub enum RolloutItem {
     SessionMeta(SessionMetaLine),
     ResponseItem(ResponseItemEnvelope),
     InterAgentCommunication(InterAgentCommunication),
-    InterAgentCommunicationMetadata {
-        trigger_turn: bool,
-    },
+    InterAgentCommunicationMetadata { trigger_turn: bool },
     Compacted(CompactedItem),
     TurnContext(TurnContextItem),
     TokenUsageRecord(TokenUsageRecord),
@@ -260,7 +236,6 @@ impl JsonSchema for RolloutItem {
     }
 }
 
-mod guardian_history;
 mod reconciled_retained_context;
 mod retained_context;
 mod sender_user_messages;
@@ -281,14 +256,10 @@ pub use retained_context::VerifiedAnswer;
 pub use retained_context::VerifiedQuestionAnswer;
 mod rollout_payload;
 
-pub use guardian_history::GuardianHistoryCheckpoint;
-pub use guardian_history::GuardianRetainedOmissions;
-
 #[derive(Clone, Debug, PartialEq)]
 pub struct CompactedItem {
     pub message: String,
     pub replacement_history: Option<Vec<ResponseItemEnvelope>>,
-    pub guardian_history: Option<GuardianHistoryCheckpoint>,
     pub retained_context: Option<RetainedContext>,
     pub mcp_resource_origins: Option<McpResourceOriginCheckpoint>,
     pub window_number: Option<u64>,

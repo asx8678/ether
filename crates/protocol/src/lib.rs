@@ -1,4 +1,4 @@
-// Modified from OpenAI Codex (codex-rs/protocol/src/lib.rs @ 806d973): added network_proxy_types and http_error modules; realtime types removed.
+// Modified from OpenAI Codex (codex-rs/protocol/src/lib.rs @ 806d973): added network_proxy_types and http_error modules; realtime types removed; guardian types removed.
 pub mod account;
 mod agent_path;
 pub mod auth;
@@ -23,8 +23,6 @@ pub mod approvals;
 pub mod capabilities;
 mod codex_error_info;
 pub mod config_types;
-mod guardian_transcript;
-pub use guardian_transcript::TranscriptFormat;
 pub mod dynamic_tools;
 mod environment;
 pub mod error;

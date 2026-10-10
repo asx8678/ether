@@ -1,4 +1,4 @@
-// Modified from OpenAI Codex (codex-rs/rollout/src/list.rs @ 806d973): thread path lookup uses rollout files only; guardian helpers copied from codex-state; realtime types removed.
+// Modified from OpenAI Codex (codex-rs/rollout/src/list.rs @ 806d973): thread path lookup uses rollout files only; realtime types removed; guardian types removed.
 #![allow(warnings, clippy::all)]
 
 use codex_utils_path as path_utils;
@@ -1014,12 +1014,6 @@ async fn read_head_summary(path: &Path, head_limit: usize) -> io::Result<HeadTai
                     summary.cli_version = Some(session_meta_line.meta.cli_version);
                     summary.created_at = Some(session_meta_line.meta.timestamp.clone());
                     summary.saw_session_meta = true;
-
-                    if is_guardian_review_source(&session_meta_line.meta.source) {
-                        // The synthetic prompt is not needed for the thread summary.
-                        summary.preview = Some(GUARDIAN_THREAD_PREVIEW.to_string());
-                        break;
-                    }
                 }
             }
             RolloutItem::ResponseItem(_) | RolloutItem::InterAgentCommunication(_) => {
@@ -1431,17 +1425,4 @@ pub fn rollout_date_parts(file_name: &OsStr) -> Option<(String, String, String)>
     let month = date.get(5..7)?.to_string();
     let day = date.get(8..10)?.to_string();
     Some((year, month, day))
-}
-
-// Copied from OpenAI Codex (codex-rs/state/src/extract.rs @ 806d973).
-const GUARDIAN_THREAD_PREVIEW: &str = "Approval review";
-
-/// Identifies internal review threads whose user messages are synthetic approval prompts.
-fn is_guardian_review_source(source: &codex_protocol::protocol::SessionSource) -> bool {
-    matches!(
-        source,
-        codex_protocol::protocol::SessionSource::SubAgent(
-            codex_protocol::protocol::SubAgentSource::Other(name)
-        ) if name == "guardian"
-    )
 }

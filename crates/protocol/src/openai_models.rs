@@ -1,4 +1,4 @@
-// Modified from OpenAI Codex (codex-rs/protocol/src/openai_models.rs @ 806d973): removed unit tests.
+// Modified from OpenAI Codex (codex-rs/protocol/src/openai_models.rs @ 806d973): removed unit tests; guardian types removed.
 //! Shared model metadata types exchanged between Codex services and clients.
 //!
 //! These types are serialized across core, TUI, app-server, and SDK boundaries, so field defaults
@@ -36,22 +36,11 @@ use crate::protocol::MultiAgentVersion;
 mod access_programs;
 mod incremental_tools;
 pub use incremental_tools::IncrementalToolMessages;
-#[path = "openai_models/guardian.rs"]
-mod guardian;
-pub use guardian::GuardianModelPolicy;
-pub use guardian::GuardianReviewMode;
-pub use guardian::GuardianScope;
-pub use guardian::GuardianUnscoredAction;
 
-#[path = "openai_models/guardian_v2.rs"]
-mod guardian_v2;
 #[path = "openai_models/reasoning_effort.rs"]
 mod reasoning_effort;
 
 pub use access_programs::ModelAccessPrograms;
-pub use guardian_v2::AsyncClassifierMode;
-pub use guardian_v2::GuardianV2ModelConfig;
-pub use guardian_v2::GuardianV2TranscriptModelConfig;
 
 /// Backend model-catalog specialty identifying cybersecurity-focused models.
 pub const MODEL_SPECIALTY_CYBER: &str = "cyber";
@@ -407,11 +396,6 @@ const fn is_true(value: &bool) -> bool {
 /// Model metadata returned by the Codex backend `/models` endpoint.
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, TS, JsonSchema)]
 pub struct ModelInfo {
-    /// Model-owned approval coverage. Absent preserves legacy settings; an empty map disables
-    /// ordinary Guardian review. Keys are computer_use, shell, file_changes, mcp, network,
-    /// and permissions. This does not override mandatory safety or administrator requirements.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub guardian: Option<GuardianModelPolicy>,
     pub slug: String,
     pub display_name: String,
     pub description: Option<String>,
@@ -565,8 +549,6 @@ pub struct ModelMessages {
     pub multi_agent: Option<MultiAgentMessages>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub token_budget: Option<ModelTokenBudgetConfig>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub guardian_v2: Option<GuardianV2ModelConfig>,
     /// Replacement confirmation-policy documents forwarded in actor MCP request metadata.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub confirmation_policies: Option<ConfirmationPolicies>,

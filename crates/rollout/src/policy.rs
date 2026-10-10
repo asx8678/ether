@@ -1,4 +1,4 @@
-// Modified from OpenAI Codex (codex-rs/rollout/src/policy.rs @ 806d973): realtime types removed.
+// Modified from OpenAI Codex (codex-rs/rollout/src/policy.rs @ 806d973): realtime types removed; guardian types removed.
 use std::borrow::Cow;
 
 use crate::RolloutItem;
@@ -158,7 +158,6 @@ fn persisted_event_msg(
         // Transient, non-durable events.
         EventMsg::Error(_)
         | EventMsg::ThreadQueueChanged(_)
-        | EventMsg::GuardianAssessment(_)
         | EventMsg::ExecCommandEnd(_)
         | EventMsg::ViewImageToolCall(_)
         | EventMsg::CollabAgentSpawnEnd(_)
@@ -171,7 +170,6 @@ fn persisted_event_msg(
         | EventMsg::Warning(_)
         | EventMsg::AuthRecoveryStarted(_)
         | EventMsg::AuthRecoveryCompleted(_)
-        | EventMsg::GuardianWarning(_)
         | EventMsg::SafetyBuffering(_)
         | EventMsg::ModelReroute(_)
         | EventMsg::ModelVerification(_)

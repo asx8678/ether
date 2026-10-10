@@ -1,4 +1,4 @@
-// Modified from OpenAI Codex (codex-rs/protocol/src/protocol.rs @ 806d973): removed unit tests; realtime types removed.
+// Modified from OpenAI Codex (codex-rs/protocol/src/protocol.rs @ 806d973): removed unit tests; realtime types removed; guardian types removed.
 //! Defines the protocol for a Codex session between a client and an agent.
 //!
 //! Uses a SQ (Submission Queue) / EQ (Event Queue) pattern to asynchronously communicate
@@ -85,14 +85,6 @@ pub use crate::approvals::ApplyPatchApprovalRequestEvent;
 pub use crate::approvals::ElicitationAction;
 pub use crate::approvals::ExecApprovalRequestEvent;
 pub use crate::approvals::ExecPolicyAmendment;
-pub use crate::approvals::GuardianAssessmentAction;
-pub use crate::approvals::GuardianAssessmentDecisionSource;
-pub use crate::approvals::GuardianAssessmentEvent;
-pub use crate::approvals::GuardianAssessmentOutcome;
-pub use crate::approvals::GuardianAssessmentStatus;
-pub use crate::approvals::GuardianCommandSource;
-pub use crate::approvals::GuardianRiskLevel;
-pub use crate::approvals::GuardianUserAuthorization;
 pub use crate::approvals::NetworkApprovalContext;
 pub use crate::approvals::NetworkApprovalProtocol;
 pub use crate::approvals::NetworkPolicyAmendment;
@@ -462,8 +454,6 @@ pub enum Op {
 
     /// Record that the user approved one retry of a concrete Guardian-denied action.
     // Assessment events are transient; retain the review identity when approving a retry.
-    #[debug("ApproveGuardianDeniedAction {{ review_id: {:?}, target_item_id: {:?}, turn_id: {:?}, status: {:?} }}", event.id, event.target_item_id, event.turn_id, event.status)]
-    ApproveGuardianDeniedAction { event: GuardianAssessmentEvent },
 
     /// Request to shut down codex instance.
     Shutdown,
@@ -671,7 +661,6 @@ impl Op {
             Self::Compact => "compact",
             Self::SetThreadMemoryMode { .. } => "set_thread_memory_mode",
             Self::Review { .. } => "review",
-            Self::ApproveGuardianDeniedAction { .. } => "approve_guardian_denied_action",
             Self::Shutdown => "shutdown",
             Self::RunUserShellCommand { .. } => "run_user_shell_command",
         }
@@ -1082,9 +1071,6 @@ pub enum EventMsg {
     /// Provider-owned authentication recovery has completed for the current turn.
     AuthRecoveryCompleted(AuthRecoveryEvent),
 
-    /// Warning issued by the guardian automatic approval reviewer.
-    GuardianWarning(WarningEvent),
-
     /// Model routing changed from the requested model to a different model.
     ModelReroute(ModelRerouteEvent),
 
@@ -1200,9 +1186,6 @@ pub enum EventMsg {
     ElicitationAbandoned(ElicitationAbandonedEvent),
 
     ApplyPatchApprovalRequest(ApplyPatchApprovalRequestEvent),
-
-    /// Structured lifecycle event for a guardian-reviewed approval request.
-    GuardianAssessment(GuardianAssessmentEvent),
 
     /// Notification advising the user that something they are using has been
     /// deprecated and should be phased out.
@@ -2516,7 +2499,6 @@ pub enum SessionSource {
 pub enum ThreadSource {
     User,
     Subagent,
-    GuardianReview,
     Feature(String),
     MemoryConsolidation,
 }
@@ -2526,7 +2508,6 @@ impl ThreadSource {
         match self {
             ThreadSource::User => "user",
             ThreadSource::Subagent => "subagent",
-            ThreadSource::GuardianReview => "guardian_review",
             ThreadSource::Feature(feature) => feature,
             ThreadSource::MemoryConsolidation => "memory_consolidation",
         }
@@ -2560,7 +2541,6 @@ impl FromStr for ThreadSource {
         match value {
             "user" => Ok(ThreadSource::User),
             "subagent" => Ok(ThreadSource::Subagent),
-            "guardian_review" => Ok(ThreadSource::GuardianReview),
             "memory_consolidation" => Ok(ThreadSource::MemoryConsolidation),
             other => Ok(ThreadSource::Feature(other.to_string())),
         }
@@ -2572,7 +2552,6 @@ impl FromStr for ThreadSource {
 #[ts(rename_all = "snake_case")]
 pub enum InternalSessionSource {
     MemoryConsolidation,
-    Guardian,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema, TS)]
@@ -2745,7 +2724,6 @@ impl fmt::Display for InternalSessionSource {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             InternalSessionSource::MemoryConsolidation => f.write_str("memory_consolidation"),
-            InternalSessionSource::Guardian => f.write_str("guardian"),
         }
     }
 }

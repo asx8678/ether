@@ -1,4 +1,4 @@
-// Modified from OpenAI Codex (codex-rs/rollout/src/session_index.rs @ 806d973): removed unit tests; no state database parameter.
+// Modified from OpenAI Codex (codex-rs/rollout/src/session_index.rs @ 806d973): removed unit tests; no state database parameter; guardian types removed.
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fs::File;
@@ -215,11 +215,8 @@ pub async fn find_thread_meta_candidates_by_name_str(
     while let Some(thread_id) = rx.recv().await {
         // Keep walking until a matching id resolves to a loadable rollout so an unsaved or partial
         // rename cannot shadow an older persisted session with the same name.
-        if let Some(path) = super::list::find_thread_path_by_id_str(
-            codex_home,
-            &thread_id.to_string(),
-        )
-        .await?
+        if let Some(path) =
+            super::list::find_thread_path_by_id_str(codex_home, &thread_id.to_string()).await?
             && let Ok(session_meta) = super::list::read_session_meta_line(&path).await
             && (allowed_sources.is_empty() || allowed_sources.contains(&session_meta.meta.source))
             && session_meta
