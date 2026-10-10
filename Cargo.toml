@@ -23,6 +23,7 @@ members = [
     "crates/utils/image",
     "crates/protocol",
     "crates/utils/output-truncation",
+    "crates/file-system",
 ]
 resolver = "2"
 
@@ -55,11 +56,13 @@ codex-execpolicy = { path = "crates/execpolicy" }
 codex-utils-image = { path = "crates/utils/image" }
 codex-protocol = { path = "crates/protocol" }
 codex-utils-output-truncation = { path = "crates/utils/output-truncation" }
+codex-file-system = { path = "crates/file-system" }
 
 # External crates, with the same specs as Codex's workspace.
 ansi-to-tui = "8.0.1"
 anyhow = "1"
 base64 = "0.22.1"
+bytes = "1.10.1"
 chardetng = "0.1.17"
 chrono = "0.4.43"
 clap = "4"
@@ -68,6 +71,7 @@ derive_more = "2"
 dirs = "6"
 dunce = "1.0.4"
 encoding_rs = "0.8.35"
+futures = { version = "0.3", default-features = false }
 gix-url = "0.35.2"
 globset = "0.4"
 http = "1.3.1"
@@ -92,6 +96,7 @@ ratatui = { version = "0.30.2", default-features = false, features = [
     "underline-color",
 ] }
 regex-lite = "0.1.8"
+rustix = { version = "1.1.4", features = ["net"] }
 schemars = "0.8.22"
 seccompiler = "0.5.0"
 serde = { version = "1", features = ["rc"] }

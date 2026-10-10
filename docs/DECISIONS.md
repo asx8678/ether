@@ -16,6 +16,7 @@ One line per decision, with the reason. Newest last.
 - Layout is `crates/<codex dir>`. `ext/items` becomes `crates/extension-items`; `vendor/bubblewrap` becomes `crates/vendor/bubblewrap`, so `bwrap/build.rs` is unchanged.
 - `vendor/bubblewrap` keeps its own LGPL-2.0-or-later licence (`COPYING`); its `tests/` are not copied.
 - C1: keep `codex-extension-items` (used by protocol, tools and rollout; 172 lines).
+- C2 detail: the ported `LocalFileSystem` has no sandboxed helper process; filesystem calls run in-process and write permission is checked by the engine before a patch is applied (as Codex core already does).
 - C2: copy exec-server's `local_file_system.rs` and `local_file_system_read.rs` into `codex-file-system` as its local implementation.
 - C3: drop rollout's SQLite state (`state_db.rs`, `sqlite_metrics.rs`, SQLite-only parts of `metadata.rs`); listing and replay use JSONL files only.
 - C5: carry only the crossterm `[patch.crates-io]` fork; the tungstenite patches are dropped because no websocket code is copied.
