@@ -1,16 +1,9 @@
-// New in ether: HTML views rendered to images.
-//! A ```` ```view ```` block of HTML in an answer is rendered by headless Chrome into a PNG and shown
-//! inline with kitty's graphics protocol. The image is shown through Unicode placeholders
-//! (`U+10EEEE` cells whose foreground colour carries the image id), so it is ordinary text to
-//! the TUI: it goes into the scrollback like any other history line and scrolls with it.
-//!
-//! Only static HTML, CSS and inline SVG are rendered: the page's CSP (`default-src 'none'`,
-//! no script source) blocks every script, inline handler and `javascript:` URL. (Chrome's
-//! `scriptEnabled=false` setting also stops headless screenshots, so the CSP is the switch.)
-//! Chrome runs offline: a throwaway profile, a CSP that blocks all loads, every host name
-//! unresolvable, and all traffic sent to a dead proxy (which also stops navigation, such as a
-//! `<meta http-equiv="refresh">` to an IP address, that a CSP does not cover), so model-written
-//! HTML cannot reach anything outside the page.
+// New in ether: HTML views shown as images in the terminal.
+//! A ```` ```view ```` block in an answer is rendered to a PNG (`view_renderer`) and shown inline
+//! with kitty's graphics protocol, through Unicode placeholders (`U+10EEEE` cells whose
+//! foreground colour carries the image id), so it is ordinary text to the TUI: it goes into the
+//! scrollback like any other history line and scrolls with it. This module holds the terminal
+//! side: capability detection, the model's instructions, sizing, and the kitty encoding.
 
 use crate::kitty_diacritics::ROW_COLUMN_DIACRITICS;
 use base64::Engine as _;
@@ -19,27 +12,18 @@ use ratatui::style::Color;
 use ratatui::style::Style;
 use ratatui::text::Line;
 use ratatui::text::Span;
-use std::io::Cursor;
 use std::path::PathBuf;
-use std::process::Command;
-use std::process::Stdio;
-use std::time::Duration;
-use std::time::Instant;
 
 const PLACEHOLDER: char = '\u{10EEEE}';
 /// Tallest image, in terminal rows.
-const MAX_ROWS: u16 = 120;
-/// Height of the page Chrome lays out before cropping, in CSS pixels.
-const PAGE_HEIGHT: u32 = 2400;
-const CHROME_TIMEOUT: Duration = Duration::from_secs(15);
-/// A proxy address nothing listens on: every request Chrome makes fails.
-const DEAD_PROXY: &str = "127.0.0.1:9";
+pub(crate) const MAX_ROWS: u16 = 120;
 
-/// How the page should look to match the terminal.
+/// How views should look to match the terminal.
 #[derive(Debug, Clone)]
 pub(crate) struct PageStyle {
-    /// CSS text colour.
-    pub(crate) color: String,
+    /// CSS text and background colours.
+    pub(crate) fg: String,
+    pub(crate) bg: String,
     pub(crate) dark: bool,
 }
 
@@ -47,12 +31,10 @@ impl PageStyle {
     /// From the terminal's default colours when known; otherwise a dark background is assumed.
     pub(crate) fn from_terminal(fg: Option<(u8, u8, u8)>, bg: Option<(u8, u8, u8)>) -> Self {
         let dark = bg.is_none_or(|(r, g, b)| is_dark(r, g, b));
-        let color = match fg {
-            Some((r, g, b)) => format!("rgb({r},{g},{b})"),
-            None if dark => "#e4e4e4".to_string(),
-            None => "#1f1f1f".to_string(),
-        };
-        Self { color, dark }
+        let css = |(r, g, b): (u8, u8, u8)| format!("rgb({r},{g},{b})");
+        let fg = fg.map(css).unwrap_or_else(|| if dark { "#e4e4e4" } else { "#1f1f1f" }.to_string());
+        let bg = bg.map(css).unwrap_or_else(|| if dark { "#1d1f21" } else { "#ffffff" }.to_string());
+        Self { fg, bg, dark }
     }
 }
 
@@ -70,34 +52,38 @@ pub fn view_instructions(dark: Option<bool>, width_px: Option<u32>) -> String {
         None => "the terminal's width".to_string(),
     };
     format!(
-        "Your answers are shown in a terminal that draws views: put HTML with inline CSS in a \
-         ```view block and the user sees it rendered as an image in its place. Static only (no \
-         JavaScript, no external URLs); inline SVG works for charts. The page is transparent over \
-         the {background} background and text defaults to the terminal's colour. Views are drawn \
-         {width} wide: size columns with max-content, fr or percentages, not fixed pixel widths \
-         (a wider view is scaled down to fit).\n\
-         When the answer has numbers to compare (sizes, percentages, counts, timings), show them \
-         in a view with bars or gauges instead of listing them. Also use views for charts, \
-         dashboards and side-by-side comparisons. Short answers, simple lists, code and text the \
-         user may copy stay markdown; ```html blocks stay code. Do not repeat a view's numbers in \
-         prose; add at most one sentence.\n\
-         Example:\n\
-         ```view\n\
-         <div style=\"display:grid;grid-template-columns:max-content minmax(120px,1fr) max-content;gap:4px 10px;align-items:center\">\n\
-         <span>disk</span><div style=\"background:#8884;height:10px\"><div style=\"width:63%;height:100%;background:#4c9\"></div></div><span>63%</span>\n\
-         </div>\n\
-         ```"
+        "Your answers are shown in a terminal that draws views: put HTML in a ```view block and \
+         the user sees it rendered as an image in its place, styled to match the terminal \
+         ({background} background). Static only (no JavaScript, no external URLs). Views are \
+         drawn {width} wide.\n\
+         Write semantic HTML with these building blocks; avoid inline colours, fixed pixel sizes \
+         and hand-drawn SVG:\n\
+         - layout: .row (side by side), .stack (vertical), .grid (CSS grid; set \
+         grid-template-columns), .card (a box; tone-ok|warn|err|info|accent|violet tints it), \
+         .badge with ok|warn|err|info, .muted, tables (td.num for numbers)\n\
+         - <x-bars unit=\"…\"><x-bar label=\"…\" value=\"…\"></x-bar>…</x-bars>: a bar chart, \
+         scaled for you\n\
+         - <x-gauge label=\"…\" value=\"…\" max=\"100\" type=\"ring|bar\" tone=\"ok\">\n\
+         - <x-spark values=\"3 5 2 8\">: a sparkline\n\
+         - <x-edge from=\"id\" to=\"id\" label=\"…\" tone=\"…\" dashed both>: an arrow between two \
+         elements with ids; lay the boxes out with .grid and the arrows are drawn for you\n\
+         - colours, if needed: var(--ok) var(--warn) var(--err) var(--info) var(--accent) \
+         var(--violet) var(--muted)\n\
+         When the answer has numbers to compare, show them in a view instead of listing them; \
+         also use views for diagrams, dashboards and side-by-side comparisons. Short answers, \
+         simple lists, code and text the user may copy stay markdown; ```html blocks stay code. \
+         Do not repeat a view's numbers in prose; add at most one sentence."
     )
 }
 
 /// Device pixels per CSS pixel, chosen so one cell is 17 CSS pixels tall: 13px CSS text then
 /// matches the terminal's text whatever its font size or pixel density.
-fn device_scale(cell_height: f64) -> f64 {
+pub(crate) fn device_scale(cell_height: f64) -> f64 {
     (cell_height / 17.0).max(0.5)
 }
 
 /// The CSS width a view gets at `cols` terminal columns.
-fn css_width_for(cols: u16, (cell_width, cell_height): (f64, f64)) -> u32 {
+pub(crate) fn css_width_for(cols: u16, (cell_width, cell_height): (f64, f64)) -> u32 {
     ((f64::from(cols) * cell_width) / device_scale(cell_height)).floor() as u32
 }
 
@@ -130,12 +116,14 @@ pub fn views_available() -> bool {
     terminal_supports_images() && find_chrome().is_some() && cell_pixels().is_some()
 }
 
-/// A rendered view, ready to show: the PNG and its size in terminal cells.
+/// A rendered view, ready to show: the PNG, its size in terminal cells, and what the view
+/// kit's checks found.
 #[derive(Debug)]
 pub(crate) struct RenderedImage {
     pub(crate) png: Vec<u8>,
     pub(crate) cols: u16,
     pub(crate) rows: u16,
+    pub(crate) issues: Vec<String>,
 }
 
 /// Whether the terminal shows images through Unicode placeholders (kitty, Ghostty).
@@ -185,171 +173,6 @@ pub(crate) fn find_chrome() -> Option<PathBuf> {
         .iter()
         .map(PathBuf::from)
         .find(|path| path.is_file())
-}
-
-/// Renders `html` at most `max_cols` cells wide. Blocking: runs Chrome.
-pub(crate) fn render_html(
-    chrome: &PathBuf,
-    html: &str,
-    max_cols: u16,
-    cell: (f64, f64),
-    style: &PageStyle,
-) -> Result<RenderedImage, String> {
-    let (cell_width, cell_height) = cell;
-    let scale = device_scale(cell_height);
-    let css_width = css_width_for(max_cols, cell);
-    // Flowing content wraps at `css_width`; the window is wider so a view with fixed widths is
-    // captured whole and scaled down below instead of being clipped.
-    let layout_width = css_width + css_width / 2;
-    // A cell is 17 CSS pixels tall (see `device_scale`), so 13px text matches the terminal's.
-    let font_px = 13.0;
-    let page = wrap_page(html, css_width, font_px, style);
-
-    let dir = std::env::temp_dir().join(format!(
-        "ether-html-{}-{}",
-        std::process::id(),
-        rand::random::<u32>()
-    ));
-    std::fs::create_dir_all(&dir).map_err(|err| format!("temp dir: {err}"))?;
-    let result = render_in(chrome, &page, layout_width, scale, &dir);
-    let _ = std::fs::remove_dir_all(&dir);
-    let png = result?;
-
-    let image = image::load_from_memory(&png).map_err(|err| format!("decode: {err}"))?;
-    let (width, height) = drawn_extent(&image).ok_or("the page drew nothing")?;
-    let max_width = (f64::from(max_cols) * cell_width).floor() as u32;
-    let (image, width, height) = if width > max_width {
-        // Wider than the terminal: shrink the drawn part to fit.
-        let factor = f64::from(max_width) / f64::from(width);
-        let new_height = ((f64::from(height) * factor).round() as u32).max(1);
-        let shrunk = image.crop_imm(0, 0, width, height).resize_exact(
-            max_width,
-            new_height,
-            image::imageops::FilterType::Lanczos3,
-        );
-        (shrunk, max_width, new_height)
-    } else {
-        (image, width, height)
-    };
-    let cols = ((f64::from(width) / cell_width).ceil() as u16).clamp(1, max_cols);
-    let rows = ((f64::from(height) / cell_height).ceil() as u16).clamp(1, MAX_ROWS);
-    // Crop to the cell grid so kitty does not stretch the image.
-    let crop_width = ((f64::from(cols) * cell_width).round() as u32).min(image.width());
-    let crop_height = ((f64::from(rows) * cell_height).round() as u32).min(image.height());
-    let cropped = image.crop_imm(0, 0, crop_width, crop_height);
-    let mut out = Vec::new();
-    cropped
-        .write_to(&mut Cursor::new(&mut out), image::ImageFormat::Png)
-        .map_err(|err| format!("encode: {err}"))?;
-    Ok(RenderedImage {
-        png: out,
-        cols,
-        rows,
-    })
-}
-
-fn render_in(
-    chrome: &PathBuf,
-    page_html: &str,
-    window_width: u32,
-    scale: f64,
-    dir: &std::path::Path,
-) -> Result<Vec<u8>, String> {
-    let page = dir.join("view.html");
-    let shot = dir.join("view.png");
-    std::fs::write(&page, page_html).map_err(|err| format!("write: {err}"))?;
-    let mut child = Command::new(chrome)
-        .arg("--headless")
-        .arg(format!("--screenshot={}", shot.display()))
-        .arg(format!("--window-size={window_width},{PAGE_HEIGHT}"))
-        .arg(format!("--force-device-scale-factor={scale:.3}"))
-        .arg("--default-background-color=00000000")
-        .arg("--hide-scrollbars")
-        .arg(format!("--user-data-dir={}", dir.join("profile").display()))
-        .arg("--host-resolver-rules=MAP * ~NOTFOUND")
-        .arg(format!("--proxy-server={DEAD_PROXY}"))
-        .arg("--proxy-bypass-list=<-loopback>")
-        .args([
-            "--no-first-run",
-            "--no-default-browser-check",
-            "--disable-extensions",
-            "--disable-sync",
-            "--disable-background-networking",
-            "--disable-component-update",
-            "--mute-audio",
-        ])
-        .arg(format!("file://{}", page.display()))
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-        .map_err(|err| format!("cannot start Chrome: {err}"))?;
-    // Headless Chrome may keep running after writing the screenshot: wait until the file stops
-    // growing, then stop Chrome.
-    let deadline = Instant::now() + CHROME_TIMEOUT;
-    let mut last_size = 0;
-    let result = loop {
-        let exited = !matches!(child.try_wait(), Ok(None));
-        let size = std::fs::metadata(&shot).map(|meta| meta.len()).unwrap_or(0);
-        if size > 0 && (exited || size == last_size) {
-            // Accept the file once it is a complete PNG.
-            if let Ok(bytes) = std::fs::read(&shot)
-                && image::load_from_memory(&bytes).is_ok()
-            {
-                break Ok(bytes);
-            }
-        }
-        if exited {
-            break Err("Chrome exited without a screenshot".to_string());
-        }
-        if Instant::now() >= deadline {
-            break Err("Chrome timed out".to_string());
-        }
-        last_size = size;
-        std::thread::sleep(Duration::from_millis(50));
-    };
-    let _ = child.kill();
-    let _ = child.wait();
-    result
-}
-
-/// The model's HTML inside a page with terminal-friendly defaults and no network access.
-fn wrap_page(html: &str, css_width: u32, font_px: f64, style: &PageStyle) -> String {
-    let scheme = if style.dark { "dark" } else { "light" };
-    let color = &style.color;
-    format!(
-        r#"<!doctype html>
-<html><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:">
-<style>
-html, body {{ margin: 0; background: transparent; color-scheme: {scheme}; }}
-body {{ color: {color}; font: {font_px}px/1.45 -apple-system, system-ui, "Segoe UI", sans-serif;
-  width: {css_width}px; padding: 2px 0; }}
-table {{ border-collapse: collapse; }}
-/* Plain tables get borders; a view with its own <style> keeps its own design. */
-body:not(:has(style)) :where(th, td) {{ border: 1px solid rgba(160,160,160,.35); padding: 4px 10px; text-align: left; }}
-body:not(:has(style)) :where(th) {{ background: rgba(160,160,160,.15); }}
-code, pre {{ font-family: ui-monospace, Menlo, monospace; }}
-</style></head><body>
-{html}
-</body></html>"#
-    )
-}
-
-/// Right and bottom edge of the non-transparent pixels.
-fn drawn_extent(image: &image::DynamicImage) -> Option<(u32, u32)> {
-    let rgba = image.to_rgba8();
-    let mut right = 0;
-    let mut bottom = 0;
-    let mut any = false;
-    for (x, y, pixel) in rgba.enumerate_pixels() {
-        if pixel[3] > 0 {
-            any = true;
-            right = right.max(x + 1);
-            bottom = bottom.max(y + 1);
-        }
-    }
-    any.then_some((right, bottom))
 }
 
 /// The escape sequence that uploads `png` as image `id` with a virtual placement of

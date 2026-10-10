@@ -16,6 +16,8 @@ use crate::html_image;
 use crate::html_image::ImageCell;
 use crate::html_image::PageStyle;
 use crate::html_image::RenderedImage;
+use crate::view_renderer::ViewRenderer;
+use crate::view_renderer::ViewResult;
 use crate::history_cell::HistoryCell;
 use crate::history_cell::HistoryRenderMode;
 use crate::streaming::controller::StreamController;
@@ -134,9 +136,6 @@ impl ImageSupport {
     }
 }
 
-/// A rendered view, tagged with its place in the answer.
-type ImageResult = (u64, Result<RenderedImage, String>);
-
 /// Answer output waiting for an earlier view to finish rendering, kept in order.
 enum Pending {
     Text(String),
@@ -176,8 +175,9 @@ struct App {
     answer_open: bool,
     /// Some of the current answer arrived as deltas.
     answer_streamed: bool,
-    image_tx: mpsc::UnboundedSender<ImageResult>,
-    image_rx: Option<mpsc::UnboundedReceiver<ImageResult>>,
+    /// Renders ```view blocks; started with the TUI so Chrome is warm for the first view.
+    renderer: Option<ViewRenderer>,
+    image_rx: Option<mpsc::UnboundedReceiver<ViewResult>>,
     width: u16,
     quit: bool,
 }
@@ -185,6 +185,15 @@ struct App {
 impl App {
     fn new() -> Self {
         let (image_tx, image_rx) = mpsc::unbounded_channel();
+        let images = ImageSupport::detect();
+        let renderer = images.as_ref().map(|images| {
+            ViewRenderer::start(
+                images.chrome.clone(),
+                images.cell,
+                images.style.clone(),
+                image_tx,
+            )
+        });
         Self {
             cwd: std::env::current_dir().unwrap_or_default(),
             model: String::new(),
@@ -201,13 +210,13 @@ impl App {
             turn_started: None,
             pending_history: Vec::new(),
             pending_raw: Vec::new(),
-            images: ImageSupport::detect(),
+            images,
             fence: HtmlFenceFilter::default(),
             pending: VecDeque::new(),
             next_view: 0,
             answer_open: false,
             answer_streamed: false,
-            image_tx,
+            renderer,
             image_rx: Some(image_rx),
             width: 80,
             quit: false,
@@ -241,6 +250,9 @@ impl App {
         self.abandon_views();
         self.flush_live_cells();
         self.draw(tui)?;
+        if let Some(renderer) = self.renderer.take() {
+            renderer.shutdown();
+        }
         Ok(())
     }
 
@@ -566,24 +578,20 @@ impl App {
             FenceOutput::Text(text) if self.pending.is_empty() => self.on_text_delta(&text),
             FenceOutput::Text(text) => self.pending.push_back(Pending::Text(text)),
             FenceOutput::Block { html, source } => {
-                let Some(images) = self.images.as_ref() else {
-                    self.on_text_delta(&source);
-                    return;
-                };
                 let seq = self.next_view;
                 self.next_view += 1;
                 let max_cols = self
                     .width
                     .saturating_sub(STREAM_RESERVED_COLS as u16)
                     .max(10);
-                let chrome = images.chrome.clone();
-                let cell = images.cell;
-                let style = images.style.clone();
-                let tx = self.image_tx.clone();
-                tokio::task::spawn_blocking(move || {
-                    let result = html_image::render_html(&chrome, &html, max_cols, cell, &style);
-                    let _ = tx.send((seq, result));
-                });
+                let queued = self
+                    .renderer
+                    .as_ref()
+                    .is_some_and(|renderer| renderer.render(seq, html, max_cols));
+                if !queued {
+                    self.on_text_delta(&source);
+                    return;
+                }
                 if self.pending.is_empty() {
                     // Text before the view goes above it.
                     self.finish_stream();
@@ -597,7 +605,7 @@ impl App {
         }
     }
 
-    fn on_image(&mut self, (seq, result): ImageResult) {
+    fn on_image(&mut self, (seq, result): ViewResult) {
         for item in self.pending.iter_mut() {
             if let Pending::View {
                 seq: view_seq,
@@ -666,6 +674,13 @@ impl App {
                     image.rows,
                 ));
                 self.push_cell(ImageCell::new(id, &image));
+                if !image.issues.is_empty() {
+                    // The view kit's checks, for the user (and for a later repair round).
+                    self.push_cell(history_cell::new_info_event(
+                        format!("view check: {}", image.issues.join("; ")),
+                        None,
+                    ));
+                }
             }
             Err(err) => {
                 self.push_cell(history_cell::new_warning_event(format!(

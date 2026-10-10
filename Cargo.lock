@@ -1727,7 +1727,6 @@ dependencies = [
  "ether-engine",
  "ether-ui-spec",
  "futures",
- "image",
  "itertools",
  "libc",
  "pathdiff",

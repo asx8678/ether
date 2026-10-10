@@ -107,3 +107,7 @@ Applied to every copied crate (see `DECISIONS.md`):
 | `crates/engine/src/world_state/display.rs` | – | new: `<terminal_display>` section, after the other world-state sections |
 | `crates/cli/replay/html.jsonl`, `demo.jsonl` | – | new: replays with a ```` ```view ```` answer |
 | `crates/cli/replay/architecture.jsonl` | – | new: GLM 5.3's live ```` ```view ```` answer drawing ether's architecture, replayed |
+| `crates/tui/src/devtools.rs` | – | new: minimal Chrome DevTools Protocol client over `--remote-debugging-pipe` |
+| `crates/tui/src/view_renderer.rs` | – | new: warm view renderer thread (page setup, kit runtime, scaled screenshot) |
+| `crates/tui/src/view_kit/runtime.js`, `kit.css` | – | new: the view kit (components, connectors, checks, terminal-themed stylesheet) |
+| `crates/cli/replay/kit.jsonl` | – | new: GLM 5.3's view written with the view kit, replayed |

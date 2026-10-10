@@ -1,0 +1,51 @@
+/* New in ether: the view kit stylesheet. ether prepends :root{--fg;--bg;color-scheme;tones}
+   from the terminal's colours. Plain semantic HTML looks finished with no inline styling. */
+:root {
+  --muted: color-mix(in srgb, var(--fg) 60%, var(--bg));
+  --surface: color-mix(in srgb, var(--fg) 7%, var(--bg));
+  --border: color-mix(in srgb, var(--fg) 20%, var(--bg));
+  --track: color-mix(in srgb, var(--fg) 13%, var(--bg));
+}
+html, body { margin: 0; background: transparent; }
+body { color: var(--fg); font: 13px/1.45 -apple-system, system-ui, "Segoe UI", sans-serif; padding: 4px 2px; }
+h1, h2, h3, h4 { margin: 0 0 .45em; line-height: 1.2; font-weight: 650; }
+h1 { font-size: 19px; } h2 { font-size: 16px; } h3 { font-size: 13.5px; } h4 { font-size: 13px; color: var(--muted); }
+p { margin: .3em 0; } ul, ol { margin: .3em 0; padding-left: 1.3em; } li { margin: .1em 0; }
+.muted, small { color: var(--muted); }
+a { color: var(--accent); text-decoration: none; }
+code, kbd, pre { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; }
+code, kbd { background: var(--surface); border-radius: 4px; padding: 0 4px; }
+pre { background: var(--surface); border-radius: 8px; padding: 8px 10px; margin: .4em 0; white-space: pre-wrap; }
+hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
+
+.row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-start; }
+.stack { display: flex; flex-direction: column; gap: 8px; }
+.grid { display: grid; gap: 12px; }
+
+.card { position: relative; z-index: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 9px 13px; }
+.card > h3:first-child, .card > h2:first-child { margin-bottom: .25em; }
+.card[class*="tone-"] { border-color: color-mix(in srgb, var(--tone) 60%, var(--bg)); background: color-mix(in srgb, var(--tone) 9%, var(--bg)); }
+.card[class*="tone-"] > :is(h1, h2, h3):first-child { color: var(--tone); }
+.tone-accent, .accent { --tone: var(--accent); } .tone-ok, .ok { --tone: var(--ok); } .tone-warn, .warn { --tone: var(--warn); }
+.tone-err, .err { --tone: var(--err); } .tone-info, .info { --tone: var(--info); } .tone-violet, .violet { --tone: var(--violet); }
+.badge { display: inline-flex; align-items: center; gap: 6px; padding: 1px 9px; border-radius: 999px; font-size: 12px; white-space: nowrap;
+  color: var(--tone, var(--accent)); background: color-mix(in srgb, var(--tone, var(--accent)) 16%, var(--bg)); }
+.badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+table { border-collapse: collapse; }
+th { color: var(--muted); font-weight: 600; text-align: left; font-size: 11.5px; text-transform: uppercase; letter-spacing: .05em; }
+th, td { padding: 5px 12px; border-bottom: 1px solid var(--border); }
+tr:last-child td { border-bottom: none; }
+.num, td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+.x-bars { display: grid; grid-template-columns: max-content minmax(140px, 300px) max-content; gap: 6px 10px; align-items: center; }
+.x-bar-track { height: 10px; border-radius: 5px; background: var(--track); overflow: hidden; }
+.x-bar-fill { height: 100%; border-radius: 5px; }
+.x-bar-value { font-variant-numeric: tabular-nums; color: var(--muted); }
+.x-gauge { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; }
+.x-gauge-label { font-size: 12px; color: var(--muted); }
+.x-spark { display: inline-block; vertical-align: middle; }
+.x-edges { position: absolute; left: 0; top: 0; z-index: 0; overflow: visible; pointer-events: none; }
+.x-edges > path.x-edge { fill: none; stroke-width: 1.6; }
+.x-edge-label { position: absolute; z-index: 2; font-size: 11px; line-height: 1.2; white-space: nowrap; }
+x-edge, x-bar { display: none; }
