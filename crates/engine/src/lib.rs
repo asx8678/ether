@@ -1,4 +1,6 @@
 // New in ether: the agent engine, ported from codex-core. Driven only by `Op` in and `Event` out.
+mod agents_md;
+mod compact;
 mod config;
 mod context;
 mod engine;
@@ -10,6 +12,7 @@ mod sampling;
 mod session;
 mod tools;
 mod turn;
+mod world_state;
 
 pub use config::BASE_INSTRUCTIONS;
 pub use config::ConfigError;

@@ -1,4 +1,4 @@
-// Modified from OpenAI Codex (codex-rs/core/src/event_mapping.rs @ 806d973): user, assistant and reasoning items only; hook prompts, web search and image generation removed; contextual-message detection uses the engine's own marker list.
+// Modified from OpenAI Codex (codex-rs/core/src/event_mapping.rs @ 806d973): user, assistant and reasoning items only; hook prompts, web search and image generation removed; contextual-message detection uses the engine's own marker list and skips compaction summaries.
 //! Maps model-visible history items to the turn items clients render.
 
 use codex_protocol::items::AgentMessageContent;
@@ -24,11 +24,14 @@ use uuid::Uuid;
 pub(crate) const CONTEXTUAL_USER_MARKERS: &[&str] = &[
     "<environment_context>",
     "<user_instructions>",
-    "# AGENTS.md instructions for ",
+    "# AGENTS.md instructions",
     "<turn_aborted>",
 ];
 
 fn is_contextual_user_text(text: &str) -> bool {
+    if crate::compact::is_summary_message(text) {
+        return true;
+    }
     let trimmed = text.trim_start();
     CONTEXTUAL_USER_MARKERS.iter().any(|marker| {
         trimmed

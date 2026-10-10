@@ -65,3 +65,11 @@ Applied to every copied crate (see `DECISIONS.md`):
 | `crates/cli` (`ether-cli`, binary `ether`, new) | – | new crate; `replay/hello.jsonl` is a sample replay file |
 | `crates/engine/src/tools/mod.rs` | – | new: `ToolHandler` interface and router; parallel-safe calls share a read/write lock as in `codex-rs/core/src/tools/parallel.rs` |
 | `crates/engine/src/tools/plan.rs` | `codex-rs/core/src/tools/handlers/{plan,plan_spec}.rs` | on ether's `ToolHandler`; Plan-mode check removed |
+| `crates/engine/src/world_state/mod.rs` | `codex-rs/core/src/context/world_state/mod.rs`, `core/src/context_manager/updates.rs` | three typed sections compared by value; no extensions, placement, hashing, merge patches or legacy matching |
+| `crates/engine/src/world_state/environment.rs` | `codex-rs/core/src/context/world_state/environment.rs`, `core/src/context/environment_context.rs` | one local environment: cwd, shell, current date |
+| `crates/engine/src/world_state/permissions.rs` | `codex-rs/core/src/context/world_state/permissions.rs`, `codex-rs/prompts/src/permissions_instructions.rs` | bundled sandbox/approval templates only; no exec-policy prefixes, granular/auto-review details or denied reads |
+| `crates/engine/src/world_state/agents_md.rs` | `codex-rs/core/src/context/world_state/agents_md.rs`, `core/src/context/user_instructions.rs` | typed snapshot only |
+| `crates/engine/src/agents_md.rs` | `codex-rs/core/src/agents_md.rs` | local sync discovery from the git root to cwd plus `$ETHER_HOME/AGENTS.md` |
+| `crates/engine/src/compact.rs` | `codex-rs/core/src/compact.rs`, `core/src/context/compaction_summary.rs`, `codex-rs/prompts/src/compact.rs` | local compaction only |
+| `crates/engine/templates/permissions/*.md` | `codex-rs/prompts/templates/permissions/{sandbox_mode,approval_policy}/*.md` | none (flattened into one directory; `on_request_rule_request_permission.md` not copied) |
+| `crates/engine/templates/compact/{prompt,summary_prefix}.md` | `codex-rs/prompts/templates/compact/*.md` | none |
