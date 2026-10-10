@@ -447,9 +447,6 @@ pub enum Op {
     )]
     Review { review_request: ReviewRequest },
 
-    /// Record that the user approved one retry of a concrete Guardian-denied action.
-    // Assessment events are transient; retain the review identity when approving a retry.
-
     /// Request to shut down codex instance.
     Shutdown,
 
