@@ -1,8 +1,11 @@
 // New in ether: terminal UI for the engine, built from Codex's TUI rendering modules.
 //! The lifted Codex modules keep their full internal API; ether uses part of it, so they are
-//! compiled with dead code and unused imports allowed. ether's own modules (`app`, `tui`, `ui_spec_cell`) are not.
+//! compiled with dead code and unused imports allowed. ether's own modules (`app`, `tui`, `ui_spec_cell`, `html_fence`, `html_image`) are not.
 
 mod app;
+mod html_fence;
+mod html_image;
+mod kitty_diacritics;
 mod tui;
 mod ui_spec_cell;
 

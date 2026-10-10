@@ -10,6 +10,12 @@ use crate::exec_cell::CommandOutput;
 use crate::exec_cell::ExecCell;
 use crate::exec_cell::new_active_exec_command;
 use crate::history_cell;
+use crate::html_fence::FenceOutput;
+use crate::html_fence::HtmlFenceFilter;
+use crate::html_image;
+use crate::html_image::ImageCell;
+use crate::html_image::PageStyle;
+use crate::html_image::RenderedImage;
 use crate::history_cell::HistoryCell;
 use crate::history_cell::HistoryRenderMode;
 use crate::streaming::controller::StreamController;
@@ -51,10 +57,12 @@ use ratatui::widgets::Widget;
 use ratatui::widgets::Wrap;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
+use std::collections::VecDeque;
 use std::path::Path;
 use std::path::PathBuf;
 use std::time::Duration;
 use std::time::Instant;
+use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 
 /// Width reserved by cells for their `• ` / `  ` gutter.
@@ -99,6 +107,46 @@ enum ApprovalKind {
     Patch,
 }
 
+/// What HTML views need: a terminal that shows images, Chrome, and the cell size in pixels.
+struct ImageSupport {
+    chrome: PathBuf,
+    cell: (f64, f64),
+    style: PageStyle,
+}
+
+impl ImageSupport {
+    /// Must run before the terminal event stream starts: it may query the terminal's colours.
+    fn detect() -> Option<Self> {
+        if !html_image::terminal_supports_images() {
+            return None;
+        }
+        let chrome = html_image::find_chrome()?;
+        let cell = html_image::cell_pixels()?;
+        let style = PageStyle::from_terminal(
+            crate::terminal_palette::default_fg(),
+            crate::terminal_palette::default_bg(),
+        );
+        Some(Self {
+            chrome,
+            cell,
+            style,
+        })
+    }
+}
+
+/// A rendered view, tagged with its place in the answer.
+type ImageResult = (u64, Result<RenderedImage, String>);
+
+/// Answer output waiting for an earlier view to finish rendering, kept in order.
+enum Pending {
+    Text(String),
+    View {
+        seq: u64,
+        source: String,
+        result: Option<Result<RenderedImage, String>>,
+    },
+}
+
 struct App {
     cwd: PathBuf,
     model: String,
@@ -116,12 +164,27 @@ struct App {
     turn_started: Option<Instant>,
     /// History to write above the viewport on the next draw.
     pending_history: Vec<Box<dyn HistoryCell>>,
+    /// Escape sequences (image uploads) to write before the next history insertion.
+    pending_raw: Vec<Vec<u8>>,
+    images: Option<ImageSupport>,
+    /// Splits HTML blocks out of the streamed answer (only with image support).
+    fence: HtmlFenceFilter,
+    /// Views being rendered and the answer text after them, in answer order.
+    pending: VecDeque<Pending>,
+    next_view: u64,
+    /// The current answer is still arriving.
+    answer_open: bool,
+    /// Some of the current answer arrived as deltas.
+    answer_streamed: bool,
+    image_tx: mpsc::UnboundedSender<ImageResult>,
+    image_rx: Option<mpsc::UnboundedReceiver<ImageResult>>,
     width: u16,
     quit: bool,
 }
 
 impl App {
     fn new() -> Self {
+        let (image_tx, image_rx) = mpsc::unbounded_channel();
         Self {
             cwd: std::env::current_dir().unwrap_or_default(),
             model: String::new(),
@@ -137,6 +200,15 @@ impl App {
             token_info: None,
             turn_started: None,
             pending_history: Vec::new(),
+            pending_raw: Vec::new(),
+            images: ImageSupport::detect(),
+            fence: HtmlFenceFilter::default(),
+            pending: VecDeque::new(),
+            next_view: 0,
+            answer_open: false,
+            answer_streamed: false,
+            image_tx,
+            image_rx: Some(image_rx),
             width: 80,
             quit: false,
         }
@@ -146,6 +218,9 @@ impl App {
         let mut events = EventStream::new();
         let mut tick = tokio::time::interval(TICK);
         tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+        let Some(mut image_rx) = self.image_rx.take() else {
+            anyhow::bail!("the app already ran");
+        };
         while !self.quit {
             self.draw(tui)?;
             tokio::select! {
@@ -158,6 +233,7 @@ impl App {
                     Some(event) => self.on_engine_event(event.msg),
                     None => break,
                 },
+                Some(image) = image_rx.recv() => self.on_image(image),
                 _ = tick.tick(), if self.is_animating() => self.on_tick(),
             }
         }
@@ -315,7 +391,10 @@ impl App {
             }
             EventMsg::TurnStarted(_) => self.turn_started = Some(Instant::now()),
             EventMsg::ItemCompleted(completed) => self.on_item_completed(completed.item),
-            EventMsg::AgentMessageContentDelta(delta) => self.on_text_delta(&delta.delta),
+            EventMsg::AgentMessageContentDelta(delta) => {
+                self.answer_streamed = true;
+                self.on_answer_text(&delta.delta);
+            }
             EventMsg::ReasoningContentDelta(delta) => self
                 .reasoning
                 .entry(delta.item_id)
@@ -395,18 +474,25 @@ impl App {
                 ));
             }
             TurnItem::AgentMessage(message) => {
-                if self.stream.is_none() {
+                let text: String = message
+                    .content
+                    .iter()
+                    .map(|part| match part {
+                        AgentMessageContent::Text { text } => text.as_str(),
+                    })
+                    .collect();
+                if !self.answer_streamed {
                     // Nothing was streamed for this message; render it whole.
-                    let text: String = message
-                        .content
-                        .iter()
-                        .map(|part| match part {
-                            AgentMessageContent::Text { text } => text.as_str(),
-                        })
-                        .collect();
-                    self.on_text_delta(&text);
+                    self.on_answer_text(&text);
                 }
-                self.finish_stream();
+                for output in self.fence.finish() {
+                    self.on_fence_output(output);
+                }
+                self.answer_open = false;
+                self.answer_streamed = false;
+                if self.pending.is_empty() {
+                    self.finish_stream();
+                }
             }
             TurnItem::Reasoning(reasoning) => {
                 let mut text = self.reasoning.remove(&reasoning.id).unwrap_or_default();
@@ -457,6 +543,110 @@ impl App {
     fn commit_views(&mut self) {
         for view in self.ui_views.drain(..) {
             self.pending_history.push(Box::new(view));
+        }
+    }
+
+    /// Answer text: through the HTML fence filter when views can be shown, else straight to
+    /// the stream (HTML blocks then stay code).
+    fn on_answer_text(&mut self, text: &str) {
+        self.answer_open = true;
+        if self.images.is_none() {
+            self.on_text_delta(text);
+            return;
+        }
+        for output in self.fence.push(text) {
+            self.on_fence_output(output);
+        }
+    }
+
+    fn on_fence_output(&mut self, output: FenceOutput) {
+        match output {
+            FenceOutput::Text(text) if self.pending.is_empty() => self.on_text_delta(&text),
+            FenceOutput::Text(text) => self.pending.push_back(Pending::Text(text)),
+            FenceOutput::Block { html, source } => {
+                let Some(images) = self.images.as_ref() else {
+                    self.on_text_delta(&source);
+                    return;
+                };
+                let seq = self.next_view;
+                self.next_view += 1;
+                let max_cols = self
+                    .width
+                    .saturating_sub(STREAM_RESERVED_COLS as u16)
+                    .max(10);
+                let chrome = images.chrome.clone();
+                let cell = images.cell;
+                let style = images.style.clone();
+                let tx = self.image_tx.clone();
+                tokio::task::spawn_blocking(move || {
+                    let result = html_image::render_html(&chrome, &html, max_cols, cell, &style);
+                    let _ = tx.send((seq, result));
+                });
+                if self.pending.is_empty() {
+                    // Text before the view goes above it.
+                    self.finish_stream();
+                }
+                self.pending.push_back(Pending::View {
+                    seq,
+                    source,
+                    result: None,
+                });
+            }
+        }
+    }
+
+    fn on_image(&mut self, (seq, result): ImageResult) {
+        for item in self.pending.iter_mut() {
+            if let Pending::View {
+                seq: view_seq,
+                result: slot,
+                ..
+            } = item
+                && *view_seq == seq
+            {
+                *slot = Some(result);
+                break;
+            }
+        }
+        // Show everything that is ready, in answer order.
+        while let Some(front) = self.pending.front() {
+            if matches!(front, Pending::View { result: None, .. }) {
+                break;
+            }
+            match self.pending.pop_front() {
+                Some(Pending::Text(text)) => self.on_text_delta(&text),
+                Some(Pending::View {
+                    source,
+                    result: Some(result),
+                    ..
+                }) => self.show_view(source, result),
+                _ => {}
+            }
+        }
+        if self.pending.is_empty() && !self.answer_open {
+            self.finish_stream();
+        }
+    }
+
+    fn show_view(&mut self, source: String, result: Result<RenderedImage, String>) {
+        match result {
+            Ok(image) => {
+                let id = html_image::new_image_id();
+                self.pending_raw.push(html_image::transmit(
+                    &image.png,
+                    id,
+                    image.cols,
+                    image.rows,
+                ));
+                self.push_cell(ImageCell::new(id, &image));
+            }
+            Err(err) => {
+                self.push_cell(history_cell::new_warning_event(format!(
+                    "html view not rendered ({err}); showing its source"
+                )));
+                self.on_text_delta(&source);
+                self.finish_stream();
+            }
         }
     }
 
@@ -576,6 +766,9 @@ impl App {
         let screen = tui.screen_size()?;
         self.width = screen.width;
         let width = screen.width;
+        for raw in std::mem::take(&mut self.pending_raw) {
+            tui.write_raw(&raw);
+        }
         for cell in std::mem::take(&mut self.pending_history) {
             let mut lines = cell.display_hyperlink_lines(width);
             if lines.is_empty() {

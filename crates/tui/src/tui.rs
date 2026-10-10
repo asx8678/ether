@@ -32,6 +32,7 @@ use ratatui::layout::Rect;
 use ratatui::layout::Size;
 use scrollback::ScrollbackStrategy;
 use std::io;
+use std::io::Write;
 use std::io::Stdout;
 use std::io::stdout;
 
@@ -43,6 +44,8 @@ pub(crate) struct Tui {
     terminal: Terminal,
     scrollback: ScrollbackStrategy,
     pending_history: Vec<Vec<HyperlinkLine>>,
+    /// Escape sequences (image uploads) to write before the next history insertion.
+    pending_raw: Vec<u8>,
 }
 
 pub(crate) fn restore() {
@@ -64,6 +67,7 @@ impl Tui {
             terminal,
             scrollback: ScrollbackStrategy::detect(&terminal_info()),
             pending_history: Vec::new(),
+            pending_raw: Vec::new(),
         })
     }
 
@@ -72,6 +76,11 @@ impl Tui {
         if !lines.is_empty() {
             self.pending_history.push(lines);
         }
+    }
+
+    /// Queues raw bytes, such as a kitty image upload, for the next draw.
+    pub(crate) fn write_raw(&mut self, bytes: &[u8]) {
+        self.pending_raw.extend_from_slice(bytes);
     }
 
     pub(crate) fn screen_size(&mut self) -> io::Result<Size> {
@@ -109,6 +118,12 @@ impl Tui {
             };
             terminal.clear_after_position(clear_from)?;
             terminal.set_viewport_area(area);
+        }
+        if !self.pending_raw.is_empty() {
+            let raw = std::mem::take(&mut self.pending_raw);
+            let writer = terminal.backend_mut();
+            writer.write_all(&raw)?;
+            writer.flush()?;
         }
         for lines in std::mem::take(&mut self.pending_history) {
             let wrap_policy = HistoryLineWrapPolicy::PreWrap;

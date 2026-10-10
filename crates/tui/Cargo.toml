@@ -27,6 +27,7 @@ dirs = { workspace = true }
 ether-engine = { workspace = true }
 ether-ui-spec = { workspace = true }
 futures = { workspace = true }
+image = { workspace = true, features = ["png"] }
 itertools = { workspace = true }
 libc = { workspace = true }
 pathdiff = { workspace = true }
