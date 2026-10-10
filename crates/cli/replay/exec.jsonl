@@ -1,0 +1,13 @@
+# Two recorded Responses API answers for `ether --replay`: run a shell command, then answer.
+# Try: ETHER_HOME=$(mktemp -d) ether --replay crates/cli/replay/exec.jsonl --approval never "run it"
+# Response 1: the model calls `exec_command`.
+{"type":"response.created","response":{"id":"resp_1"}}
+{"type":"response.output_item.added","output_index":0,"item":{"type":"function_call","id":"fc_1","call_id":"call_exec_1","name":"exec_command","arguments":""}}
+{"type":"response.output_item.done","output_index":0,"item":{"type":"function_call","id":"fc_1","call_id":"call_exec_1","name":"exec_command","arguments":"{\"cmd\":\"echo hi\"}"}}
+{"type":"response.completed","response":{"id":"resp_1","usage":{"input_tokens":1200,"input_tokens_details":{"cached_tokens":0},"output_tokens":20,"output_tokens_details":{"reasoning_tokens":0},"total_tokens":1220}}}
+# Response 2: the model reports the command's output.
+{"type":"response.created","response":{"id":"resp_2"}}
+{"type":"response.output_item.added","output_index":0,"item":{"type":"message","id":"msg_2","role":"assistant","content":[]}}
+{"type":"response.output_text.delta","item_id":"msg_2","output_index":0,"content_index":0,"delta":"The command printed `hi`."}
+{"type":"response.output_item.done","output_index":0,"item":{"type":"message","id":"msg_2","role":"assistant","content":[{"type":"output_text","text":"The command printed `hi`."}]}}
+{"type":"response.completed","response":{"id":"resp_2","usage":{"input_tokens":1300,"input_tokens_details":{"cached_tokens":1152},"output_tokens":9,"output_tokens_details":{"reasoning_tokens":0},"total_tokens":1309}}}

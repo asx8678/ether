@@ -5,12 +5,14 @@
 use anyhow::Context;
 use clap::Parser;
 use clap::ValueEnum;
+use codex_protocol::approvals::ExecApprovalRequestEvent;
 use codex_protocol::config_types::SandboxMode;
 use codex_protocol::items::AgentMessageContent;
 use codex_protocol::items::TurnItem;
 use codex_protocol::protocol::AskForApproval;
 use codex_protocol::protocol::EventMsg;
 use codex_protocol::protocol::Op;
+use codex_protocol::protocol::ReviewDecision;
 use codex_protocol::protocol::ThreadSettingsOverrides;
 use codex_protocol::protocol::TokenCountEvent;
 use codex_protocol::turn_input::TurnInput;
@@ -185,9 +187,59 @@ async fn run_until_turn_ends(engine: &mut Engine, printer: &mut Printer) {
         let Some(event) = event else {
             return;
         };
+        if let EventMsg::ExecApprovalRequest(request) = &event.msg {
+            printer.end_stream();
+            let decision = ask_exec_approval(printer, request).await;
+            let _ = engine.submit(Op::ExecApproval {
+                id: request.effective_approval_id(),
+                turn_id: Some(request.turn_id.clone()),
+                decision,
+            });
+            continue;
+        }
         if printer.print(&event.msg) {
             return;
         }
+    }
+}
+
+/// Asks on the terminal whether to run a command. Without a terminal the command is declined.
+async fn ask_exec_approval(
+    printer: &Printer,
+    request: &ExecApprovalRequestEvent,
+) -> ReviewDecision {
+    let command = shlex_join(&request.command);
+    eprintln!(
+        "{}",
+        printer.paint(&format!("approve? $ {command}"), "1;33")
+    );
+    if let Some(reason) = &request.reason {
+        eprintln!("{}", printer.paint(&format!("  {reason}"), "2"));
+    }
+    if !std::io::stdin().is_terminal() {
+        eprintln!(
+            "{}",
+            printer.paint("  no terminal to ask on; declining", "2")
+        );
+        return ReviewDecision::Abort;
+    }
+    eprint!(
+        "{}",
+        printer.paint("  [y] yes  [a] yes for this session  [n] no > ", "1")
+    );
+    let _ = std::io::stderr().flush();
+    let answer = tokio::task::spawn_blocking(|| {
+        let mut line = String::new();
+        std::io::stdin().read_line(&mut line).map(|_| line)
+    })
+    .await;
+    match answer {
+        Ok(Ok(line)) => match line.trim() {
+            "y" | "yes" => ReviewDecision::Approved,
+            "a" => ReviewDecision::ApprovedForSession,
+            _ => ReviewDecision::Abort,
+        },
+        _ => ReviewDecision::Abort,
     }
 }
 
@@ -268,6 +320,26 @@ impl Printer {
                 } else {
                     self.end_stream();
                 }
+            }
+            EventMsg::ExecCommandBegin(begin) => {
+                self.end_stream();
+                let command = display_command(&begin.command);
+                eprintln!("{}", self.paint(&format!("$ {command}"), "1"));
+            }
+            EventMsg::ExecCommandOutputDelta(delta) => {
+                eprint!(
+                    "{}",
+                    self.paint(&String::from_utf8_lossy(&delta.chunk), "2")
+                );
+            }
+            EventMsg::ExecCommandEnd(end) => {
+                let status = format!(
+                    "exit {} in {:.1}s",
+                    end.exit_code,
+                    end.duration.as_secs_f64()
+                );
+                let color = if end.exit_code == 0 { "2" } else { "31" };
+                eprintln!("{}", self.paint(&status, color));
             }
             EventMsg::TokenCount(token_count) => {
                 self.token_count = Some(token_count.clone());
@@ -351,4 +423,16 @@ fn init_logging() {
         .with_env_filter(filter)
         .with_writer(std::io::stderr)
         .try_init();
+}
+
+fn shlex_join(command: &[String]) -> String {
+    shlex::try_join(command.iter().map(String::as_str)).unwrap_or_else(|_| command.join(" "))
+}
+
+/// The script of a `shell -lc SCRIPT` command, or the whole command line.
+fn display_command(command: &[String]) -> String {
+    match command {
+        [_, flag, script] if flag == "-lc" || flag == "-c" => script.clone(),
+        _ => shlex_join(command),
+    }
 }

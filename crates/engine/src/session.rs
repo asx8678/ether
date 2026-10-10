@@ -4,6 +4,7 @@
 //! run in one process.
 
 use crate::config::EngineConfig;
+use crate::exec::ExecManager;
 use crate::history::History;
 use crate::tools::ToolRouter;
 use crate::tools::built_in_handlers;
@@ -28,6 +29,8 @@ pub(crate) struct Session {
     pub(crate) config: EngineConfig,
     pub(crate) model: Arc<dyn ModelClient>,
     pub(crate) tools: ToolRouter,
+    /// Unified exec processes, approvals and exec-policy rules.
+    pub(crate) exec: ExecManager,
     tx_event: mpsc::Sender<Event>,
     state: Mutex<SessionState>,
 }
@@ -62,11 +65,13 @@ impl Session {
         tx_event: mpsc::Sender<Event>,
     ) -> Self {
         let tools = ToolRouter::new(built_in_handlers(&config));
+        let exec = ExecManager::new(&config.ether_home);
         Self {
             thread_id: ThreadId::new(),
             config,
             model,
             tools,
+            exec,
             tx_event,
             state: Mutex::new(SessionState::default()),
         }

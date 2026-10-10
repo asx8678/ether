@@ -6,6 +6,8 @@
 //! parallel calls already in flight (a read/write lock, as in Codex's `parallel.rs`).
 
 mod plan;
+mod shell_spec;
+mod unified_exec;
 
 use crate::config::EngineConfig;
 use crate::session::Session;
@@ -63,7 +65,11 @@ pub(crate) trait ToolHandler: Send + Sync {
 
 /// The built-in tools, in the order they are advertised. Each tool module adds its handler here.
 pub(crate) fn built_in_handlers(_config: &EngineConfig) -> Vec<Arc<dyn ToolHandler>> {
-    vec![Arc::new(plan::PlanHandler)]
+    vec![
+        Arc::new(unified_exec::ExecCommandHandler),
+        Arc::new(unified_exec::WriteStdinHandler),
+        Arc::new(plan::PlanHandler),
+    ]
 }
 
 pub(crate) struct ToolRouter {
@@ -97,6 +103,10 @@ impl ToolRouter {
     }
 
     /// Runs one tool call and returns its output item.
+    #[expect(
+        clippy::await_holding_invalid_type,
+        reason = "the parallel gate is held for the whole call, as in Codex's parallel.rs"
+    )]
     pub(crate) async fn dispatch(
         &self,
         sess: Arc<Session>,

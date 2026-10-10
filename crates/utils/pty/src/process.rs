@@ -1,4 +1,4 @@
-// Modified from OpenAI Codex (codex-rs/utils/pty/src/process.rs @ 806d973): removed Windows-only code.
+// Modified from OpenAI Codex (codex-rs/utils/pty/src/process.rs @ 806d973): removed Windows-only code; `signal` returns directly (the binding only served Windows code).
 use core::fmt;
 use std::io;
 #[cfg(unix)]
@@ -235,8 +235,7 @@ impl ProcessHandle {
             return Ok(());
         };
 
-        let result = killer.signal(signal);
-        result
+        killer.signal(signal)
     }
 
     /// Attempts to kill the child and abort I/O helper tasks.
