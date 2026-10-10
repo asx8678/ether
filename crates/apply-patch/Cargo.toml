@@ -1,0 +1,29 @@
+# Modified from OpenAI Codex (codex-rs/apply-patch/Cargo.toml @ 806d973): removed dev-dependencies; codex-exec-server replaced by codex-file-system.
+[package]
+name = "codex-apply-patch"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "codex_apply_patch"
+path = "src/lib.rs"
+doctest = false
+
+[[bin]]
+name = "apply_patch"
+path = "src/main.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+codex-file-system = { workspace = true }
+codex-utils-absolute-path = { workspace = true }
+codex-utils-path-uri = { workspace = true }
+similar = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt"] }
+tree-sitter = { workspace = true }
+tree-sitter-bash = { workspace = true }

@@ -499,6 +499,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "codex-apply-patch"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "codex-file-system",
+ "codex-utils-absolute-path",
+ "codex-utils-path-uri",
+ "similar",
+ "thiserror 2.0.18",
+ "tokio",
+ "tree-sitter",
+ "tree-sitter-bash",
+]
+
+[[package]]
 name = "codex-async-utils"
 version = "0.0.0"
 dependencies = [

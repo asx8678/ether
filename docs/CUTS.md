@@ -36,3 +36,4 @@ These apply to every crate and are only listed per crate when something besides 
 | `codex-history` | dev-dependencies: `anyhow`, `pretty_assertions` | deleted from the manifest |
 | `codex-context-fragments` | dev-dependencies: `pretty_assertions` | deleted from the manifest |
 | `codex-git-utils` | dev-dependencies: `codex-utils-cargo-bin`, `pretty_assertions` | deleted from the manifest |
+| `codex-apply-patch` | dev-dependencies: `assert_cmd`, `codex-utils-cargo-bin`, `pretty_assertions`, `tempfile`; `codex-exec-server` (10 refs in 3 files + 1 in the standalone binary) | dev-deps deleted; exec-server swapped for `codex-file-system`, which re-exports the same filesystem types plus `LOCAL_FS` (C2) |
