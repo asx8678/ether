@@ -4,6 +4,7 @@ members = [
     "crates/utils/absolute-path",
     "crates/utils/string",
     "crates/utils/stream-parser",
+    "crates/utils/fuzzy-match",
 ]
 resolver = "2"
 
@@ -17,6 +18,7 @@ license = "Apache-2.0"
 codex-utils-absolute-path = { path = "crates/utils/absolute-path" }
 codex-utils-string = { path = "crates/utils/string" }
 codex-utils-stream-parser = { path = "crates/utils/stream-parser" }
+codex-utils-fuzzy-match = { path = "crates/utils/fuzzy-match" }
 
 # External crates, with the same specs as Codex's workspace.
 dirs = "6"
