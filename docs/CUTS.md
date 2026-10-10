@@ -26,3 +26,4 @@ These apply to every crate and are only listed per crate when something besides 
 | `codex-utils-path` | Windows dependencies: `windows-sys`; dev-dependencies: `pretty_assertions`, `tempfile` | deleted from the manifest |
 | `codex-extension-items` | dev-dependencies: `pretty_assertions` | deleted from the manifest |
 | `codex-execpolicy` | dev-dependencies: `pretty_assertions` | deleted from the manifest |
+| `codex-utils-image` | dev-dependencies: `divan`, `image`; dev-dependencies: `name`, `harness` | deleted from the manifest |
