@@ -1,0 +1,32 @@
+# Modified from OpenAI Codex (codex-rs/tools/Cargo.toml @ 806d973): removed dev-dependencies; removed codex-code-mode, codex-connectors and codex-features.
+[package]
+edition.workspace = true
+license.workspace = true
+name = "codex-tools"
+version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+bitflags = { workspace = true }
+codex-file-system = { workspace = true }
+codex-extension-items = { workspace = true }
+codex-protocol = { workspace = true }
+codex-utils-output-truncation = { workspace = true }
+codex-utils-path-uri = { workspace = true }
+codex-utils-string = { workspace = true }
+jsonptr = { workspace = true }
+rmcp = { workspace = true, default-features = false, features = [
+    "base64",
+    "macros",
+    "schemars",
+    "server",
+] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true, features = ["raw_value"] }
+thiserror = { workspace = true }
+urlencoding = { workspace = true }
+
+[lib]
+doctest = false

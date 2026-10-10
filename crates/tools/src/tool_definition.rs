@@ -1,0 +1,27 @@
+// Modified from OpenAI Codex (codex-rs/tools/src/tool_definition.rs @ 806d973): removed unit tests.
+use crate::JsonSchema;
+use crate::ToolOutputSchema;
+
+/// Tool metadata and schemas that downstream crates can adapt into higher-level
+/// tool specs.
+#[derive(Debug, PartialEq)]
+pub struct ToolDefinition {
+    pub name: String,
+    pub description: String,
+    pub input_schema: JsonSchema,
+    pub output_schema: Option<ToolOutputSchema>,
+    pub defer_loading: bool,
+}
+
+impl ToolDefinition {
+    pub fn renamed(mut self, name: String) -> Self {
+        self.name = name;
+        self
+    }
+
+    pub fn into_deferred(mut self) -> Self {
+        self.output_schema = None;
+        self.defer_loading = true;
+        self
+    }
+}

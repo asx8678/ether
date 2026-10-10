@@ -1,0 +1,16 @@
+// Modified from OpenAI Codex (codex-rs/tools/src/dynamic_tool.rs @ 806d973): removed unit tests.
+use crate::ToolDefinition;
+use crate::parse_tool_input_schema;
+use codex_protocol::dynamic_tools::DynamicToolFunctionSpec;
+
+pub fn parse_dynamic_tool(
+    tool: &DynamicToolFunctionSpec,
+) -> Result<ToolDefinition, serde_json::Error> {
+    Ok(ToolDefinition {
+        name: tool.name.clone(),
+        description: tool.description.clone(),
+        input_schema: parse_tool_input_schema(&tool.input_schema)?,
+        output_schema: None,
+        defer_loading: tool.defer_loading,
+    })
+}

@@ -33,6 +33,7 @@ members = [
     "crates/model-provider-info",
     "crates/sandboxing",
     "crates/linux-sandbox",
+    "crates/tools",
 ]
 resolver = "2"
 
@@ -75,11 +76,13 @@ codex-client = { path = "crates/codex-client" }
 codex-model-provider-info = { path = "crates/model-provider-info" }
 codex-sandboxing = { path = "crates/sandboxing" }
 codex-linux-sandbox = { path = "crates/linux-sandbox" }
+codex-tools = { path = "crates/tools" }
 
 # External crates, with the same specs as Codex's workspace.
 ansi-to-tui = "8.0.1"
 anyhow = "1"
 base64 = "0.22.1"
+bitflags = "2.13.1"
 bytes = "1.10.1"
 chardetng = "0.1.17"
 chrono = "0.4.43"
@@ -101,6 +104,7 @@ icu_locale_core = "2.1"
 icu_provider = { version = "2.1", features = ["sync"] }
 ignore = "0.4.23"
 image = { version = "^0.25.9", default-features = false }
+jsonptr = { version = "0.7.1", default-features = false }
 landlock = "0.4.4"
 libc = "0.2.182"
 lru = "0.18.2"
@@ -119,6 +123,7 @@ ratatui = { version = "0.30.2", default-features = false, features = [
 regex = "1.12.3"
 regex-lite = "0.1.8"
 reqwest = { version = "0.12", features = ["cookies"] }
+rmcp = { git = "https://github.com/modelcontextprotocol/rust-sdk", rev = "3e636cab26c013eca5131103c03d20237f12c4df", version = "=3.3.0", default-features = false }
 rustix = { version = "1.1.4", features = ["net"] }
 schemars = "0.8.22"
 seccompiler = "0.5.0"
