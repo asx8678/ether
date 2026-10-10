@@ -90,9 +90,10 @@ pub fn view_instructions(dark: Option<bool>, width_px: Option<u32>) -> String {
     )
 }
 
-/// Device pixels per CSS pixel: about 2 on a Retina display, where cells are ~32px tall.
+/// Device pixels per CSS pixel, chosen so one cell is 17 CSS pixels tall: 13px CSS text then
+/// matches the terminal's text whatever its font size or pixel density.
 fn device_scale(cell_height: f64) -> f64 {
-    (cell_height / 17.0).round().max(1.0)
+    (cell_height / 17.0).max(0.5)
 }
 
 /// The CSS width a view gets at `cols` terminal columns.
@@ -200,8 +201,8 @@ pub(crate) fn render_html(
     // Flowing content wraps at `css_width`; the window is wider so a view with fixed widths is
     // captured whole and scaled down below instead of being clipped.
     let layout_width = css_width + css_width / 2;
-    // Text about the size of the terminal's.
-    let font_px = (cell_height / scale * 0.78).round().clamp(11.0, 24.0);
+    // A cell is 17 CSS pixels tall (see `device_scale`), so 13px text matches the terminal's.
+    let font_px = 13.0;
     let page = wrap_page(html, css_width, font_px, style);
 
     let dir = std::env::temp_dir().join(format!(
@@ -261,7 +262,7 @@ fn render_in(
         .arg("--headless")
         .arg(format!("--screenshot={}", shot.display()))
         .arg(format!("--window-size={window_width},{PAGE_HEIGHT}"))
-        .arg(format!("--force-device-scale-factor={scale}"))
+        .arg(format!("--force-device-scale-factor={scale:.3}"))
         .arg("--default-background-color=00000000")
         .arg("--hide-scrollbars")
         .arg(format!("--user-data-dir={}", dir.join("profile").display()))
@@ -323,7 +324,7 @@ fn wrap_page(html: &str, css_width: u32, font_px: f64, style: &PageStyle) -> Str
 <style>
 html, body {{ margin: 0; background: transparent; color-scheme: {scheme}; }}
 body {{ color: {color}; font: {font_px}px/1.45 -apple-system, system-ui, "Segoe UI", sans-serif;
-  width: max-content; max-width: {css_width}px; padding: 2px 0; }}
+  width: {css_width}px; padding: 2px 0; }}
 table {{ border-collapse: collapse; }}
 /* Plain tables get borders; a view with its own <style> keeps its own design. */
 body:not(:has(style)) :where(th, td) {{ border: 1px solid rgba(160,160,160,.35); padding: 4px 10px; text-align: left; }}

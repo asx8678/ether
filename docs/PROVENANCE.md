@@ -106,3 +106,4 @@ Applied to every copied crate (see `DECISIONS.md`):
 | `crates/tui/src/kitty_diacritics.rs` | kitty's `rowcolumn-diacritics.txt` (kitty 0.49.2 docs) | the list of code points, as a Rust array |
 | `crates/engine/src/world_state/display.rs` | – | new: `<terminal_display>` section, after the other world-state sections |
 | `crates/cli/replay/html.jsonl`, `demo.jsonl` | – | new: replays with a ```` ```view ```` answer |
+| `crates/cli/replay/architecture.jsonl` | – | new: GLM 5.3's live ```` ```view ```` answer drawing ether's architecture, replayed |
