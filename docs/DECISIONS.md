@@ -26,3 +26,8 @@ One line per decision, with the reason. Newest last.
 - C3: drop rollout's SQLite state (`state_db.rs`, `sqlite_metrics.rs`, SQLite-only parts of `metadata.rs`); listing and replay use JSONL files only.
 - C5: carry only the crossterm `[patch.crates-io]` fork; the tungstenite patches are dropped because no websocket code is copied.
 - C6: drop dev-dependencies on crates not on the list. All dev-dependencies are removed anyway now that tests are gone.
+- Phase 3 engine is new code shaped like Codex core, lifting functions and match arms where they stand alone: core's files reach into `Session`, config, guardian, hooks, analytics and exec-server almost everywhere, so they cannot be copied whole. The to-do list is `docs/PHASE3.md`.
+- C4: the process backend is a small local one on `codex-utils-pty` (spawn, stdin, output, kill), with the `codex-sandboxing` transform applied before spawn; exec-server's local backend (~4.5k lines) is not copied and shell snapshots are left out.
+- Config lives in `~/.ether/config.toml`, with an optional project `.ether/config.toml` and CLI overrides on top; `codex-config` is not copied.
+- The Phase 3 runnable is a plain-text `ether` command (prompt in, streamed answer and tool activity out); the Phase 5 TUI replaces it.
+- `ether --replay FILE` feeds recorded Responses SSE through the real parser in place of a network model. It is a runtime feature for running the binary before Phase 4 connects GLM, not a test.
