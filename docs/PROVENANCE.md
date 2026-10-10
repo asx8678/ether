@@ -26,3 +26,5 @@ Applied to every copied crate (see `DECISIONS.md`):
 | `crates/file-search` (`codex-file-search`) | `codex-rs/file-search` | unit tests stripped from 1 file(s), 1 test file(s) deleted; Windows-only code stripped from 1 file(s); manifest: removed `[dev-dependencies]` |
 | `crates/process-hardening` (`codex-process-hardening`) | `codex-rs/process-hardening` | unit tests stripped from 1 file(s), 0 test file(s) deleted; Windows-only code stripped from 1 file(s); manifest: removed `[dev-dependencies]` |
 | `crates/uds` (`codex-uds`) | `codex-rs/uds` | unit tests stripped from 1 file(s), 1 test file(s) deleted; Windows-only code stripped from 2 file(s); deleted unreachable `src/windows_peer.rs`, `src/windows_security.rs`, `src/windows_socket_validation.rs`; manifest: removed `[target.'cfg(windows)'.dependencies]`, `[dev-dependencies]` |
+| `crates/bwrap` (`codex-bwrap`) | `codex-rs/bwrap` | none |
+| `crates/vendor/bubblewrap` (LGPL-2.0-or-later) | `codex-rs/vendor/bubblewrap` | `tests/` not copied |

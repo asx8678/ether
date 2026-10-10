@@ -13,6 +13,7 @@ members = [
     "crates/file-search",
     "crates/process-hardening",
     "crates/uds",
+    "crates/bwrap",
 ]
 resolver = "2"
 
@@ -35,6 +36,7 @@ codex-ansi-escape = { path = "crates/ansi-escape" }
 codex-file-search = { path = "crates/file-search" }
 codex-process-hardening = { path = "crates/process-hardening" }
 codex-uds = { path = "crates/uds" }
+codex-bwrap = { path = "crates/bwrap" }
 
 # External crates, with the same specs as Codex's workspace.
 ansi-to-tui = "8.0.1"
