@@ -1,0 +1,20 @@
+# Modified from OpenAI Codex (codex-rs/utils/pty/Cargo.toml @ 806d973): removed Windows-only dependencies, dev-dependencies.
+[package]
+edition.workspace = true
+license.workspace = true
+name = "codex-utils-pty"
+version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+portable-pty = { workspace = true }
+tokio = { workspace = true, features = ["io-util", "macros", "net", "process", "rt-multi-thread", "signal", "sync", "time"] }
+
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }
+
+[lib]
+doctest = false

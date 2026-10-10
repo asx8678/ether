@@ -14,6 +14,7 @@ members = [
     "crates/process-hardening",
     "crates/uds",
     "crates/bwrap",
+    "crates/utils/pty",
 ]
 resolver = "2"
 
@@ -37,6 +38,7 @@ codex-file-search = { path = "crates/file-search" }
 codex-process-hardening = { path = "crates/process-hardening" }
 codex-uds = { path = "crates/uds" }
 codex-bwrap = { path = "crates/bwrap" }
+codex-utils-pty = { path = "crates/utils/pty" }
 
 # External crates, with the same specs as Codex's workspace.
 ansi-to-tui = "8.0.1"
@@ -49,6 +51,7 @@ ignore = "0.4.23"
 libc = "0.2.182"
 lru = "0.18.2"
 nucleo = { git = "https://github.com/helix-editor/nucleo.git", rev = "4253de9faabb4e5c6d81d946a5e35a90f87347ee" }
+portable-pty = "0.9.0"
 rand = "0.9"
 ratatui = { version = "0.30.2", default-features = false, features = [
     "crossterm",
