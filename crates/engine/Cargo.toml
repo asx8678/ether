@@ -16,6 +16,7 @@ codex-context-fragments = { workspace = true }
 codex-history = { workspace = true }
 codex-model-provider-info = { workspace = true }
 codex-protocol = { workspace = true }
+codex-rollout = { workspace = true }
 codex-tools = { workspace = true }
 codex-utils-absolute-path = { workspace = true }
 codex-utils-output-truncation = { workspace = true }

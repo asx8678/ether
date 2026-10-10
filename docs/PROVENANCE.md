@@ -65,3 +65,5 @@ Applied to every copied crate (see `DECISIONS.md`):
 | `crates/cli` (`ether-cli`, binary `ether`, new) | – | new crate; `replay/hello.jsonl` is a sample replay file |
 | `crates/engine/src/tools/mod.rs` | – | new: `ToolHandler` interface and router; parallel-safe calls share a read/write lock as in `codex-rs/core/src/tools/parallel.rs` |
 | `crates/engine/src/tools/plan.rs` | `codex-rs/core/src/tools/handlers/{plan,plan_spec}.rs` | on ether's `ToolHandler`; Plan-mode check removed |
+| `crates/engine/src/rollout.rs` | – | new: opens the `codex-rollout` recorder for a session, applies its persistence policy, builds `TurnContextItem`s and finds sessions to resume; wiring shaped like `codex-rs/core/src/session/mod.rs` `persist_rollout_items` |
+| `crates/engine/src/reconstruct.rs` | `codex-rs/core/src/session/rollout_reconstruction.rs` | forward replay from the newest compaction with replacement history, plus last token count and turn number; rollback, retained/guardian context, world state, windows and turn settings removed |

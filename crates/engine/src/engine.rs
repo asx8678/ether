@@ -1,13 +1,17 @@
-// New in ether: the engine handle and submission loop, in the role of Codex's submission loop (codex-rs/core/src/session/handlers.rs @ 806d973).
+// New in ether: the engine handle (new or resumed sessions) and submission loop, in the role of Codex's submission loop (codex-rs/core/src/session/handlers.rs @ 806d973).
 //! The engine is driven only through [`Op`] in and [`Event`] out. [`Engine::spawn`] starts one
 //! session on the current Tokio runtime; dropping the handle or sending [`Op::Shutdown`] ends it.
 
 use crate::config::EngineConfig;
+use crate::history::History;
+use crate::reconstruct::reconstruct_rollout;
+use crate::rollout::Rollout;
+use crate::rollout::permission_profile;
 use crate::session::Session;
+use crate::session::SessionInit;
 use crate::turn::run_turn;
-use codex_protocol::config_types::SandboxMode;
+use codex_protocol::ThreadId;
 use codex_protocol::error::CodexErr;
-use codex_protocol::models::PermissionProfile;
 use codex_protocol::models::ResponseInputItem;
 use codex_protocol::models::ResponseItem;
 use codex_protocol::protocol::ErrorEvent;
@@ -19,7 +23,9 @@ use codex_protocol::turn_input::NotSubmittedReason;
 use codex_protocol::turn_input::TurnInput;
 use codex_protocol::turn_input::TurnInputMode;
 use codex_protocol::turn_input::TurnInputSubmission;
+use codex_rollout::RolloutRecorder;
 use ether_llm::ModelClient;
+use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 
@@ -40,12 +46,46 @@ pub struct Engine {
 pub struct EngineClosed;
 
 impl Engine {
-    /// Starts a session. Its first event is `SessionConfigured`.
+    /// Starts a session, recorded to a new rollout file. Its first event is `SessionConfigured`.
     pub fn spawn(config: EngineConfig, model: Arc<dyn ModelClient>) -> Self {
+        Self::start(config, model, Start::New)
+    }
+
+    /// Resumes the session recorded at `rollout_path`: its history is rebuilt and new items are
+    /// appended to the same file. Fails if the rollout cannot be read.
+    pub async fn resume(
+        config: EngineConfig,
+        model: Arc<dyn ModelClient>,
+        rollout_path: &Path,
+    ) -> std::io::Result<Self> {
+        let (items, _thread_id, _parse_errors) =
+            RolloutRecorder::load_rollout_items(rollout_path).await?;
+        let reconstruction = reconstruct_rollout(&items).ok_or_else(|| {
+            std::io::Error::other(format!(
+                "{} has no session metadata",
+                rollout_path.display()
+            ))
+        })?;
+        Ok(Self::start(
+            config,
+            model,
+            Start::Resume {
+                path: rollout_path.to_path_buf(),
+                reconstruction: Box::new(reconstruction),
+            },
+        ))
+    }
+
+    fn start(config: EngineConfig, model: Arc<dyn ModelClient>, start: Start) -> Self {
         let (tx_op, rx_op) = mpsc::unbounded_channel();
         let (tx_event, rx_event) = mpsc::channel(EVENT_CHANNEL_CAPACITY);
-        let session = Arc::new(Session::new(config, model, tx_event));
-        tokio::spawn(submission_loop(session, rx_op));
+        tokio::spawn(async move {
+            let init = session_init(&config, start).await;
+            let session = Arc::new(Session::new(config, model, tx_event, init));
+            // A resumed session may end in an interrupted turn; answer its open calls.
+            session.close_open_calls().await;
+            submission_loop(session, rx_op).await;
+        });
         Self { tx_op, rx_event }
     }
 
@@ -56,6 +96,48 @@ impl Engine {
     /// Returns the next event, or `None` once the session has ended.
     pub async fn next_event(&mut self) -> Option<Event> {
         self.rx_event.recv().await
+    }
+}
+
+enum Start {
+    New,
+    Resume {
+        path: std::path::PathBuf,
+        reconstruction: Box<crate::reconstruct::RolloutReconstruction>,
+    },
+}
+
+/// Opens the rollout. A rollout that cannot be opened leaves the session unrecorded.
+async fn session_init(config: &EngineConfig, start: Start) -> SessionInit {
+    match start {
+        Start::New => {
+            let thread_id = ThreadId::new();
+            let rollout = Rollout::create(config, thread_id)
+                .await
+                .inspect_err(|err| tracing::warn!("session will not be recorded: {err}"))
+                .ok();
+            SessionInit {
+                thread_id,
+                history: History::default(),
+                turn_counter: 0,
+                rollout,
+            }
+        }
+        Start::Resume {
+            path,
+            reconstruction,
+        } => {
+            let rollout = Rollout::resume(config, path, reconstruction.history_mode)
+                .await
+                .inspect_err(|err| tracing::warn!("resumed session will not be recorded: {err}"))
+                .ok();
+            SessionInit {
+                thread_id: reconstruction.thread_id,
+                history: reconstruction.history,
+                turn_counter: reconstruction.last_turn_number,
+                rollout,
+            }
+        }
     }
 }
 
@@ -98,6 +180,7 @@ async fn submission_loop(sess: Arc<Session>, mut rx_op: mpsc::UnboundedReceiver<
             }
         }
     }
+    sess.shutdown_rollout().await;
     sess.send_event(SESSION_EVENT_ID, EventMsg::ShutdownComplete)
         .await;
 }
@@ -180,11 +263,7 @@ fn not_submitted(reason: NotSubmittedReason) -> TurnInputSubmission {
 
 fn session_configured(sess: &Session) -> SessionConfiguredEvent {
     let config = &sess.config;
-    let permission_profile = match config.sandbox_mode {
-        SandboxMode::ReadOnly => PermissionProfile::read_only(),
-        SandboxMode::WorkspaceWrite => PermissionProfile::workspace_write(),
-        SandboxMode::DangerFullAccess => PermissionProfile::Disabled,
-    };
+    let permission_profile = permission_profile(config.sandbox_mode);
     SessionConfiguredEvent {
         session_id: sess.thread_id.into(),
         thread_id: sess.thread_id,
@@ -202,6 +281,6 @@ fn session_configured(sess: &Session) -> SessionConfiguredEvent {
         cwd: config.cwd.clone(),
         reasoning_effort: config.reasoning_effort.clone(),
         network_proxy: None,
-        rollout_path: None,
+        rollout_path: sess.rollout_path().map(Path::to_path_buf),
     }
 }

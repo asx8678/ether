@@ -5,8 +5,10 @@
 
 use crate::config::EngineConfig;
 use crate::history::History;
+use crate::rollout::Rollout;
 use crate::tools::ToolRouter;
 use crate::tools::built_in_handlers;
+use codex_history::ResponseItemEnvelope;
 use codex_protocol::ThreadId;
 use codex_protocol::models::ResponseItem;
 use codex_protocol::protocol::Event;
@@ -15,6 +17,7 @@ use codex_protocol::protocol::ReviewDecision;
 use codex_protocol::protocol::TokenCountEvent;
 use codex_protocol::protocol::TokenUsage;
 use codex_protocol::request_user_input::RequestUserInputResponse;
+use codex_rollout::RolloutItem;
 use ether_llm::ModelClient;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -29,7 +32,17 @@ pub(crate) struct Session {
     pub(crate) model: Arc<dyn ModelClient>,
     pub(crate) tools: ToolRouter,
     tx_event: mpsc::Sender<Event>,
+    /// Where the session is recorded; `None` when the rollout could not be opened.
+    rollout: Option<Rollout>,
     state: Mutex<SessionState>,
+}
+
+/// How a session starts: fresh, or from a rollout's reconstructed state.
+pub(crate) struct SessionInit {
+    pub(crate) thread_id: ThreadId,
+    pub(crate) history: History,
+    pub(crate) turn_counter: u64,
+    pub(crate) rollout: Option<Rollout>,
 }
 
 #[derive(Default)]
@@ -60,21 +73,57 @@ impl Session {
         config: EngineConfig,
         model: Arc<dyn ModelClient>,
         tx_event: mpsc::Sender<Event>,
+        init: SessionInit,
     ) -> Self {
         let tools = ToolRouter::new(built_in_handlers(&config));
         Self {
-            thread_id: ThreadId::new(),
+            thread_id: init.thread_id,
             config,
             model,
             tools,
             tx_event,
-            state: Mutex::new(SessionState::default()),
+            rollout: init.rollout,
+            state: Mutex::new(SessionState {
+                history: init.history,
+                turn_counter: init.turn_counter,
+                ..SessionState::default()
+            }),
+        }
+    }
+
+    pub(crate) fn rollout_path(&self) -> Option<&std::path::Path> {
+        self.rollout.as_ref().map(Rollout::path)
+    }
+
+    /// Records items in the rollout, through its persistence policy.
+    pub(crate) async fn persist_rollout_items(&self, items: &[RolloutItem]) {
+        if let Some(rollout) = &self.rollout {
+            rollout.record(items).await;
+        }
+    }
+
+    /// Records the turn's settings and makes sure the rollout file exists.
+    pub(crate) async fn record_turn_context(&self, turn_id: &str) {
+        let Some(rollout) = &self.rollout else {
+            return;
+        };
+        let item = crate::rollout::turn_context_item(&self.config, turn_id);
+        rollout.record(&[RolloutItem::TurnContext(item)]).await;
+        rollout.persist().await;
+    }
+
+    /// Writes out the rollout and stops its writer.
+    pub(crate) async fn shutdown_rollout(&self) {
+        if let Some(rollout) = &self.rollout {
+            rollout.shutdown().await;
         }
     }
 
     /// Sends an event to the client. A closed receiver means the client is gone; events are
     /// then dropped.
     pub(crate) async fn send_event(&self, id: &str, msg: EventMsg) {
+        self.persist_rollout_items(&[RolloutItem::EventMsg(msg.clone())])
+            .await;
         let event = Event {
             id: id.to_string(),
             msg,
@@ -84,7 +133,12 @@ impl Session {
 
     pub(crate) async fn record_items(&self, items: &[ResponseItem]) {
         let policy = self.config.model.truncation_policy;
-        self.state.lock().await.history.record(items, policy);
+        let recorded = self.state.lock().await.history.record(items, policy);
+        let rollout_items: Vec<RolloutItem> = recorded
+            .into_iter()
+            .map(RolloutItem::ResponseItem)
+            .collect();
+        self.persist_rollout_items(&rollout_items).await;
     }
 
     pub(crate) async fn prompt_input(&self) -> Vec<ResponseItem> {
@@ -93,7 +147,14 @@ impl Session {
 
     /// Closes tool calls left open by an interrupted turn and returns the outputs added.
     pub(crate) async fn close_open_calls(&self) -> Vec<ResponseItem> {
-        self.state.lock().await.history.close_open_calls()
+        let added = self.state.lock().await.history.close_open_calls();
+        let rollout_items: Vec<RolloutItem> = added
+            .iter()
+            .cloned()
+            .map(|item| RolloutItem::ResponseItem(ResponseItemEnvelope::new(item)))
+            .collect();
+        self.persist_rollout_items(&rollout_items).await;
+        added
     }
 
     pub(crate) async fn update_token_usage(&self, usage: &TokenUsage) -> TokenCountEvent {
