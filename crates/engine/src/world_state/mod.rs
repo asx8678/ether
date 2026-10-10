@@ -1,11 +1,13 @@
-// Modified from OpenAI Codex (codex-rs/core/src/context/world_state/mod.rs and core/src/context_manager/updates.rs @ 806d973): three typed sections compared by value; no extension sections, placement, hashing, merge patches or legacy/retained fragment matching.
-//! The model-visible "world state": environment, permissions and AGENTS.md instructions.
+// Modified from OpenAI Codex (codex-rs/core/src/context/world_state/mod.rs and core/src/context_manager/updates.rs @ 806d973): three typed sections compared by value, plus ether's display section; no extension sections, placement, hashing, merge patches or legacy/retained fragment matching.
+//! The model-visible "world state": environment, permissions, AGENTS.md instructions and what
+//! the terminal can display.
 //!
 //! Each section renders itself relative to the snapshot the model last saw. The first turn
 //! renders everything; later turns append only what changed, so earlier items (and the
 //! prompt-cache prefix they form) are never rewritten.
 
 mod agents_md;
+mod display;
 mod environment;
 mod permissions;
 
@@ -16,6 +18,7 @@ use codex_protocol::models::InternalChatMessageMetadataPassthrough;
 use codex_protocol::models::ResponseItem;
 
 pub(crate) use agents_md::AgentsMdState;
+pub(crate) use display::DisplayState;
 pub(crate) use environment::EnvironmentState;
 pub(crate) use permissions::PermissionsState;
 
@@ -37,6 +40,7 @@ pub(crate) struct WorldStateSnapshot {
     agents_md: Option<<AgentsMdState as WorldStateSection>::Snapshot>,
     permissions: Option<<PermissionsState as WorldStateSection>::Snapshot>,
     environment: Option<<EnvironmentState as WorldStateSection>::Snapshot>,
+    display: Option<<DisplayState as WorldStateSection>::Snapshot>,
 }
 
 /// Live model-visible state, in Codex's section order.
@@ -44,6 +48,7 @@ pub(crate) struct WorldState {
     agents_md: AgentsMdState,
     permissions: PermissionsState,
     environment: EnvironmentState,
+    display: DisplayState,
 }
 
 impl WorldState {
@@ -53,6 +58,7 @@ impl WorldState {
             agents_md: AgentsMdState::load(config),
             permissions: PermissionsState::new(config),
             environment: EnvironmentState::capture(config),
+            display: DisplayState::new(config),
         }
     }
 
@@ -75,10 +81,15 @@ impl WorldState {
             .environment
             .render_diff(previous.and_then(|previous| previous.environment.as_ref()));
         fragments.extend(updates);
+        let (display, updates) = self
+            .display
+            .render_diff(previous.and_then(|previous| previous.display.as_ref()));
+        fragments.extend(updates);
         let snapshot = WorldStateSnapshot {
             agents_md: Some(agents_md),
             permissions: Some(permissions),
             environment: Some(environment),
+            display: Some(display),
         };
         (snapshot, merge_fragments(fragments))
     }

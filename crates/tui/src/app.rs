@@ -243,7 +243,7 @@ impl App {
     }
 
     fn is_animating(&self) -> bool {
-        self.turn_started.is_some() || self.stream.is_some()
+        self.turn_started.is_some() || self.stream.is_some() || !self.pending.is_empty()
     }
 
     fn stream_width(&self) -> Option<usize> {
@@ -628,6 +628,31 @@ impl App {
         }
     }
 
+    /// Shows everything held for views now: finished views as images, the others as their
+    /// source, and any half-received view block as text.
+    fn abandon_views(&mut self) {
+        let mut held: Vec<Pending> = self.pending.drain(..).collect();
+        for output in self.fence.finish() {
+            match output {
+                FenceOutput::Text(text) => held.push(Pending::Text(text)),
+                FenceOutput::Block { source, .. } => held.push(Pending::Text(source)),
+            }
+        }
+        for item in held {
+            match item {
+                Pending::Text(text) => self.on_text_delta(&text),
+                Pending::View {
+                    source,
+                    result: Some(result),
+                    ..
+                } => self.show_view(source, result),
+                Pending::View { source, .. } => self.on_text_delta(&source),
+            }
+        }
+        self.answer_open = false;
+        self.answer_streamed = false;
+    }
+
     fn show_view(&mut self, source: String, result: Result<RenderedImage, String>) {
         match result {
             Ok(image) => {
@@ -719,6 +744,8 @@ impl App {
 
     fn end_turn(&mut self, note: Option<&str>) {
         if note.is_some() {
+            // An interrupted answer may hold text behind a view that never arrives.
+            self.abandon_views();
             // An interrupted turn ends its commands without `ExecCommandEnd`.
             for cell in self.exec_cells.values_mut() {
                 cell.mark_failed();
@@ -849,6 +876,22 @@ impl App {
                 lines.push(Line::default());
             }
             lines.extend(view.display_lines(width));
+        }
+        let rendering = self
+            .pending
+            .iter()
+            .filter(|item| matches!(item, Pending::View { result: None, .. }))
+            .count();
+        if rendering > 0 {
+            if !lines.is_empty() {
+                lines.push(Line::default());
+            }
+            let label = if rendering == 1 {
+                "rendering view…".to_string()
+            } else {
+                format!("rendering {rendering} views…")
+            };
+            lines.push(Line::from(vec!["◦ ".dim(), label.dim().italic()]));
         }
         let mut cells: Vec<&ExecCell> = self.exec_cells.values().collect();
         cells.sort_by_key(|cell| cell.active_start_time());

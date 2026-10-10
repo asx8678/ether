@@ -106,7 +106,7 @@ enum SandboxArg {
 async fn main() -> anyhow::Result<()> {
     init_logging();
     let cli = Cli::parse();
-    let config = ether_engine::load_config(ConfigOverrides {
+    let mut config = ether_engine::load_config(ConfigOverrides {
         model: cli.model.clone(),
         model_provider: cli.provider.clone(),
         approval_policy: cli.approval.map(|approval| match approval {
@@ -147,14 +147,19 @@ async fn main() -> anyhow::Result<()> {
         ),
         (None, false) => None,
     };
+    // The TUI on a terminal; plain text for pipes, files and `--no-tui`.
+    let use_tui = !cli.no_tui && std::io::stdin().is_terminal() && std::io::stdout().is_terminal();
+    if use_tui && ether_tui::views_available() {
+        // The TUI draws ```view blocks; tell the model (render_ui then defaults to off).
+        config.display_instructions =
+            Some(ether_tui::view_instructions(ether_tui::terminal_is_dark()));
+    }
     let mut engine = match resume_path {
         Some(path) => Engine::resume(config, model, &path)
             .await
             .with_context(|| format!("cannot resume {}", path.display()))?,
         None => Engine::spawn(config, model),
     };
-    // The full-screen TUI on a terminal; plain text for pipes, files and `--no-tui`.
-    let use_tui = !cli.no_tui && std::io::stdin().is_terminal() && std::io::stdout().is_terminal();
     if use_tui {
         return ether_tui::run(engine, cli.prompt).await;
     }

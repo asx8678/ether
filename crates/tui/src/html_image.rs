@@ -1,5 +1,5 @@
-// New in ether: HTML views rendered to images (spike).
-//! A ```` ```html ```` block in an answer is rendered by headless Chrome into a PNG and shown
+// New in ether: HTML views rendered to images.
+//! A ```` ```view ```` block of HTML in an answer is rendered by headless Chrome into a PNG and shown
 //! inline with kitty's graphics protocol. The image is shown through Unicode placeholders
 //! (`U+10EEEE` cells whose foreground colour carries the image id), so it is ordinary text to
 //! the TUI: it goes into the scrollback like any other history line and scrolls with it.
@@ -46,9 +46,7 @@ pub(crate) struct PageStyle {
 impl PageStyle {
     /// From the terminal's default colours when known; otherwise a dark background is assumed.
     pub(crate) fn from_terminal(fg: Option<(u8, u8, u8)>, bg: Option<(u8, u8, u8)>) -> Self {
-        let dark = bg.is_none_or(|(r, g, b)| {
-            0.2126 * f64::from(r) + 0.7152 * f64::from(g) + 0.0722 * f64::from(b) < 128.0
-        });
+        let dark = bg.is_none_or(|(r, g, b)| is_dark(r, g, b));
         let color = match fg {
             Some((r, g, b)) => format!("rgb({r},{g},{b})"),
             None if dark => "#e4e4e4".to_string(),
@@ -56,6 +54,54 @@ impl PageStyle {
         };
         Self { color, dark }
     }
+}
+
+/// What the model is told when views are drawn (the `<terminal_display>` context section).
+/// `dark` is the terminal background, if known. The text is fixed for a session: it is part of
+/// the prompt-cache prefix.
+pub fn view_instructions(dark: Option<bool>) -> String {
+    let background = match dark {
+        Some(true) => "dark",
+        Some(false) => "light",
+        None => "terminal's",
+    };
+    format!(
+        "Your answers are shown in a terminal that draws views: put HTML with inline CSS in a \
+         ```view block and the user sees it rendered as an image in its place. Static only (no \
+         JavaScript, no external URLs); inline SVG works for charts. The page is transparent over \
+         the {background} background and text defaults to the terminal's colour.\n\
+         When the answer has numbers to compare (sizes, percentages, counts, timings), show them \
+         in a view with bars or gauges instead of listing them. Also use views for charts, \
+         dashboards and side-by-side comparisons. Short answers, simple lists, code and text the \
+         user may copy stay markdown; ```html blocks stay code. Do not repeat a view's numbers in \
+         prose; add at most one sentence.\n\
+         Example:\n\
+         ```view\n\
+         <div style=\"display:grid;grid-template-columns:auto 160px auto;gap:4px 10px;align-items:center\">\n\
+         <span>disk</span><div style=\"background:#8884;height:10px\"><div style=\"width:63%;height:100%;background:#4c9\"></div></div><span>63%</span>\n\
+         </div>\n\
+         ```"
+    )
+}
+
+/// Whether the terminal background is dark, from a colour query (`None` if it does not
+/// answer). Call before the TUI starts: it briefly puts the terminal in raw mode. The answer
+/// is cached for the page style.
+pub fn terminal_is_dark() -> Option<bool> {
+    crossterm::terminal::enable_raw_mode().ok()?;
+    let background = crate::terminal_palette::default_bg();
+    let _ = crossterm::terminal::disable_raw_mode();
+    background.map(|(r, g, b)| is_dark(r, g, b))
+}
+
+fn is_dark(r: u8, g: u8, b: u8) -> bool {
+    0.2126 * f64::from(r) + 0.7152 * f64::from(g) + 0.0722 * f64::from(b) < 128.0
+}
+
+/// Whether this terminal can show views: image support, Chrome, and a known cell size.
+/// Cheap, and safe before the TUI starts (it does not query the terminal).
+pub fn views_available() -> bool {
+    terminal_supports_images() && find_chrome().is_some() && cell_pixels().is_some()
 }
 
 /// A rendered view, ready to show: the PNG and its size in terminal cells.
@@ -238,8 +284,9 @@ html, body {{ margin: 0; background: transparent; color-scheme: {scheme}; }}
 body {{ color: {color}; font: {font_px}px/1.45 -apple-system, system-ui, "Segoe UI", sans-serif;
   width: max-content; max-width: {css_width}px; padding: 2px 0; }}
 table {{ border-collapse: collapse; }}
-th, td {{ border: 1px solid rgba(160,160,160,.35); padding: 4px 10px; text-align: left; }}
-th {{ background: rgba(160,160,160,.15); }}
+/* Plain tables get borders; a view with its own <style> keeps its own design. */
+body:not(:has(style)) :where(th, td) {{ border: 1px solid rgba(160,160,160,.35); padding: 4px 10px; text-align: left; }}
+body:not(:has(style)) :where(th) {{ background: rgba(160,160,160,.15); }}
 code, pre {{ font-family: ui-monospace, Menlo, monospace; }}
 </style></head><body>
 {html}

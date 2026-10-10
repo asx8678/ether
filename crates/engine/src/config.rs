@@ -72,7 +72,7 @@ pub struct ConfigToml {
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct UiToml {
-    /// Offer the `render_ui` tool (generative UI). Default: on.
+    /// Offer the `render_ui` tool (generative UI). Default: on, unless the TUI draws HTML views.
     pub render_tool: Option<bool>,
 }
 
@@ -123,8 +123,20 @@ pub struct EngineConfig {
     pub approval_policy: AskForApproval,
     pub sandbox_mode: SandboxMode,
     pub base_instructions: String,
+    /// `[ui] render_tool`: whether the `render_ui` tool is offered. Unset, it is offered unless
+    /// the front end draws views itself (`display_instructions`).
+    pub render_ui_tool: Option<bool>,
+    /// What the front end can display, told to the model in the `<terminal_display>` context
+    /// section. Set by the front end before the engine starts; fixed for the session.
+    pub display_instructions: Option<String>,
+}
+
+impl EngineConfig {
     /// Whether the `render_ui` tool is offered.
-    pub render_ui_tool: bool,
+    pub fn offers_render_ui(&self) -> bool {
+        self.render_ui_tool
+            .unwrap_or(self.display_instructions.is_none())
+    }
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -246,6 +258,7 @@ fn resolve(
         base_instructions: toml
             .instructions
             .unwrap_or_else(|| BASE_INSTRUCTIONS.to_string()),
-        render_ui_tool: toml.ui.render_tool.unwrap_or(true),
+        render_ui_tool: toml.ui.render_tool,
+        display_instructions: None,
     })
 }

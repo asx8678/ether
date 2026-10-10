@@ -1,7 +1,9 @@
-// New in ether: splits ```` ```html ```` blocks out of a streamed answer (HTML views spike).
+// New in ether: splits ```` ```view ```` blocks out of a streamed answer (HTML views).
 //! The answer arrives in arbitrary chunks. [`HtmlFenceFilter::push`] passes text through as
-//! soon as it cannot start an HTML fence, holds fenced HTML until its closing fence, and then
-//! returns it as one [`FenceOutput::Block`], so the view can be rendered in place of the code.
+//! soon as it cannot start a view fence, holds the fenced HTML until its closing fence, and
+//! then returns it as one [`FenceOutput::Block`], so the view can be rendered in place of the
+//! code. Only the `view` tag is a view: ```` ```html ```` stays code, since a coding agent is
+//! often asked to show HTML source.
 
 #[derive(Debug, PartialEq)]
 pub(crate) enum FenceOutput {
@@ -88,10 +90,13 @@ fn push_text(out: &mut Vec<FenceOutput>, text: String) {
     }
 }
 
-/// A line like ```` ```html ```` (any case, `~~~` too, optional attributes after a space).
+/// The fences that open a view.
+const VIEW_FENCES: [&str; 2] = ["```view", "~~~view"];
+
+/// A line like ```` ```view ```` (any case, `~~~` too, optional words after a space).
 fn is_opener(line: &str) -> bool {
     let trimmed = line.trim().to_ascii_lowercase();
-    ["```html", "~~~html"].iter().any(|fence| {
+    VIEW_FENCES.iter().any(|fence| {
         trimmed
             .strip_prefix(fence)
             .is_some_and(|rest| rest.is_empty() || rest.starts_with([' ', '{']))
@@ -103,10 +108,10 @@ fn is_closer(line: &str) -> bool {
     trimmed.len() >= 3 && (trimmed.chars().all(|c| c == '`') || trimmed.chars().all(|c| c == '~'))
 }
 
-/// Whether an incomplete line may still turn out to be an HTML fence opener.
+/// Whether an incomplete line may still turn out to be a view fence opener.
 fn could_open(partial: &str) -> bool {
     let trimmed = partial.trim_start().to_ascii_lowercase();
-    ["```html", "~~~html"]
+    VIEW_FENCES
         .iter()
         .any(|fence| fence.starts_with(&trimmed) || trimmed.starts_with(fence))
 }

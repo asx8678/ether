@@ -79,7 +79,7 @@ pub(crate) fn built_in_handlers(config: &EngineConfig) -> Vec<Arc<dyn ToolHandle
         Arc::new(view_image::ViewImageHandler),
         Arc::new(request_user_input::RequestUserInputHandler),
     ];
-    if config.render_ui_tool {
+    if config.offers_render_ui() {
         handlers.push(Arc::new(render_ui::RenderUiHandler::default()));
     }
     handlers
