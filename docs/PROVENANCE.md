@@ -33,3 +33,4 @@ Applied to every copied crate (see `DECISIONS.md`):
 | `crates/utils/home-dir` (`codex-utils-home-dir`) | `codex-rs/utils/home-dir` | unit tests stripped from 1 file(s), 0 test file(s) deleted; manifest: removed `[dev-dependencies]` |
 | `crates/utils/path-utils` (`codex-utils-path`) | `codex-rs/utils/path-utils` | unit tests stripped from 2 file(s), 2 test file(s) deleted; Windows-only code stripped from 2 file(s); manifest: removed `[target.'cfg(windows)'.dependencies]`, `[dev-dependencies]` |
 | `crates/extension-items` (`codex-extension-items`) | `codex-rs/ext/items` | unit tests stripped from 1 file(s), 1 test file(s) deleted; manifest: removed `[dev-dependencies]` |
+| `crates/execpolicy` (`codex-execpolicy`) | `codex-rs/execpolicy` | unit tests stripped from 2 file(s), 1 test file(s) deleted; Windows-only code stripped from 1 file(s); manifest: removed `[dev-dependencies]` |

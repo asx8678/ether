@@ -19,6 +19,7 @@ members = [
     "crates/utils/home-dir",
     "crates/utils/path-utils",
     "crates/extension-items",
+    "crates/execpolicy",
 ]
 resolver = "2"
 
@@ -47,6 +48,7 @@ codex-utils-path-uri = { path = "crates/utils/path-uri" }
 codex-utils-home-dir = { path = "crates/utils/home-dir" }
 codex-utils-path = { path = "crates/utils/path-utils" }
 codex-extension-items = { path = "crates/extension-items" }
+codex-execpolicy = { path = "crates/execpolicy" }
 
 # External crates, with the same specs as Codex's workspace.
 ansi-to-tui = "8.0.1"
@@ -59,6 +61,7 @@ dunce = "1.0.4"
 ignore = "0.4.23"
 libc = "0.2.182"
 lru = "0.18.2"
+multimap = "0.10.0"
 nucleo = { git = "https://github.com/helix-editor/nucleo.git", rev = "4253de9faabb4e5c6d81d946a5e35a90f87347ee" }
 portable-pty = "0.9.0"
 rand = "0.9"
@@ -72,6 +75,8 @@ schemars = "0.8.22"
 serde = { version = "1", features = ["rc"] }
 serde_json = "1"
 sha1 = "0.10.6"
+shlex = "1.3.0"
+starlark = { version = "0.14.2", default-features = false }
 tempfile = "3.23.0"
 thiserror = "2.0.17"
 tokio = "1"

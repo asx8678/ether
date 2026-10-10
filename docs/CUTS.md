@@ -25,3 +25,4 @@ These apply to every crate and are only listed per crate when something besides 
 | `codex-utils-home-dir` | dev-dependencies: `pretty_assertions`, `tempfile` | deleted from the manifest |
 | `codex-utils-path` | Windows dependencies: `windows-sys`; dev-dependencies: `pretty_assertions`, `tempfile` | deleted from the manifest |
 | `codex-extension-items` | dev-dependencies: `pretty_assertions` | deleted from the manifest |
+| `codex-execpolicy` | dev-dependencies: `pretty_assertions` | deleted from the manifest |
