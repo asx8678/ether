@@ -70,14 +70,14 @@ pub(crate) struct ToolRouter {
     /// Handlers in registration order; the advertised tool list follows this order.
     handlers: Vec<Arc<dyn ToolHandler>>,
     /// Parallel-safe calls hold it shared, the others exclusively.
-    gate: RwLock<()>,
+    gate: Arc<RwLock<()>>,
 }
 
 impl ToolRouter {
     pub(crate) fn new(handlers: Vec<Arc<dyn ToolHandler>>) -> Self {
         Self {
             handlers,
-            gate: RwLock::new(()),
+            gate: Arc::new(RwLock::new(())),
         }
     }
 
@@ -119,10 +119,10 @@ impl ToolRouter {
             cancel,
         };
         let result = if handler.supports_parallel() {
-            let _shared = self.gate.read().await;
+            let _shared = Arc::clone(&self.gate).read_owned().await;
             handler.handle(invocation).await
         } else {
-            let _exclusive = self.gate.write().await;
+            let _exclusive = Arc::clone(&self.gate).write_owned().await;
             handler.handle(invocation).await
         };
         let output = match result {
