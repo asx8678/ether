@@ -3,6 +3,8 @@
 //! of [`ResponseEvent`]s. The engine only sees this interface, so the wire format underneath
 //! (Responses now, Chat Completions in Phase 4, or a replay file) can change without it knowing.
 
+use crate::chat::ChatCompletionsModelClient;
+use crate::chat::build_chat_request;
 use crate::common::Reasoning;
 use crate::common::ResponseStream;
 use crate::common::ResponsesApiRequest;
@@ -17,6 +19,10 @@ use codex_protocol::models::ResponseItem;
 use futures::future::BoxFuture;
 use serde::Serialize;
 use serde_json::Value;
+use std::io::Write;
+use std::path::Path;
+use std::sync::Arc;
+use std::sync::Mutex;
 
 /// One model request.
 #[derive(Debug, Clone, Default, Serialize)]
@@ -48,10 +54,76 @@ pub trait ModelClient: Send + Sync {
 /// Errors building a model client from provider configuration.
 #[derive(Debug, thiserror::Error)]
 pub enum ClientBuildError {
-    #[error("provider `{0}`: the Chat Completions wire API is not available yet")]
-    ChatCompletionsUnavailable(String),
     #[error("provider `{name}`: {message}")]
     Provider { name: String, message: String },
+}
+
+/// Builds the client for `info`'s wire API: Responses or Chat Completions.
+pub fn client_for_provider(
+    info: &ModelProviderInfo,
+) -> Result<Arc<dyn ModelClient>, ClientBuildError> {
+    let provider_error = |err: codex_protocol::error::CodexErr| ClientBuildError::Provider {
+        name: info.name.clone(),
+        message: err.to_string(),
+    };
+    let provider = info.to_api_provider(None).map_err(provider_error)?;
+    let api_key = info.api_key().map_err(provider_error)?;
+    let transport = ReqwestTransport::new(reqwest::Client::new());
+    Ok(match info.wire_api {
+        WireApi::Responses => Arc::new(ResponsesModelClient {
+            client: ResponsesClient::new(transport, provider, api_key),
+        }),
+        WireApi::ChatCompletions => Arc::new(ChatCompletionsModelClient::new(
+            transport, provider, api_key,
+        )),
+    })
+}
+
+/// The request body a prompt becomes on the given wire API, as sent.
+pub fn request_body(prompt: &Prompt, wire_api: WireApi) -> Value {
+    match wire_api {
+        WireApi::Responses => {
+            serde_json::to_value(ResponsesModelClient::build_request(prompt)).unwrap_or(Value::Null)
+        }
+        WireApi::ChatCompletions => build_chat_request(prompt),
+    }
+}
+
+/// Wraps a client and appends each request body (in `wire_api`'s format) as a JSON line to a file.
+pub struct RequestLog {
+    inner: Arc<dyn ModelClient>,
+    wire_api: WireApi,
+    file: Mutex<std::fs::File>,
+}
+
+impl RequestLog {
+    pub fn new(
+        inner: Arc<dyn ModelClient>,
+        wire_api: WireApi,
+        path: &Path,
+    ) -> std::io::Result<Self> {
+        let file = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(path)?;
+        Ok(Self {
+            inner,
+            wire_api,
+            file: Mutex::new(file),
+        })
+    }
+}
+
+impl ModelClient for RequestLog {
+    fn stream<'a>(&'a self, prompt: &'a Prompt) -> BoxFuture<'a, Result<ResponseStream, ApiError>> {
+        if let Ok(mut line) = serde_json::to_vec(&request_body(prompt, self.wire_api)) {
+            line.push(b'\n');
+            if let Ok(mut file) = self.file.lock() {
+                let _ = file.write_all(&line);
+            }
+        }
+        self.inner.stream(prompt)
+    }
 }
 
 /// [`ModelClient`] over the OpenAI Responses API (`POST /responses`).
@@ -60,24 +132,6 @@ pub struct ResponsesModelClient {
 }
 
 impl ResponsesModelClient {
-    pub fn from_provider(info: &ModelProviderInfo) -> Result<Self, ClientBuildError> {
-        if info.wire_api == WireApi::ChatCompletions {
-            return Err(ClientBuildError::ChatCompletionsUnavailable(
-                info.name.clone(),
-            ));
-        }
-        let provider_error = |err: codex_protocol::error::CodexErr| ClientBuildError::Provider {
-            name: info.name.clone(),
-            message: err.to_string(),
-        };
-        let provider = info.to_api_provider(None).map_err(provider_error)?;
-        let api_key = info.api_key().map_err(provider_error)?;
-        let transport = ReqwestTransport::new(reqwest::Client::new());
-        Ok(Self {
-            client: ResponsesClient::new(transport, provider, api_key),
-        })
-    }
-
     fn build_request(prompt: &Prompt) -> ResponsesApiRequest {
         let include = if prompt.reasoning.is_some() {
             vec!["reasoning.encrypted_content".to_string()]

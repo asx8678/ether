@@ -18,7 +18,6 @@ use futures::future::BoxFuture;
 use http::HeaderMap;
 use http::StatusCode;
 use std::collections::VecDeque;
-use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -51,7 +50,6 @@ pub enum ReplayError {
 /// [`ModelClient`] that answers each request with the next recorded response.
 pub struct ReplayModelClient {
     responses: Mutex<VecDeque<Bytes>>,
-    request_log: Option<Mutex<std::fs::File>>,
 }
 
 impl ReplayModelClient {
@@ -69,31 +67,7 @@ impl ReplayModelClient {
         }
         Ok(Self {
             responses: Mutex::new(responses),
-            request_log: None,
         })
-    }
-
-    /// Appends each request's prompt as one JSON line to `path`.
-    pub fn with_request_log(mut self, path: &Path) -> std::io::Result<Self> {
-        let file = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(path)?;
-        self.request_log = Some(Mutex::new(file));
-        Ok(self)
-    }
-
-    fn log_request(&self, prompt: &Prompt) {
-        let Some(log) = self.request_log.as_ref() else {
-            return;
-        };
-        let Ok(mut line) = serde_json::to_vec(prompt) else {
-            return;
-        };
-        line.push(b'\n');
-        if let Ok(mut file) = log.lock() {
-            let _ = file.write_all(&line);
-        }
     }
 
     fn next_response(&self) -> Option<Bytes> {
@@ -102,9 +76,11 @@ impl ReplayModelClient {
 }
 
 impl ModelClient for ReplayModelClient {
-    fn stream<'a>(&'a self, prompt: &'a Prompt) -> BoxFuture<'a, Result<ResponseStream, ApiError>> {
+    fn stream<'a>(
+        &'a self,
+        _prompt: &'a Prompt,
+    ) -> BoxFuture<'a, Result<ResponseStream, ApiError>> {
         Box::pin(async move {
-            self.log_request(prompt);
             let Some(body) = self.next_response() else {
                 return Err(ApiError::InvalidRequest {
                     message: "replay file has no more recorded responses".to_string(),

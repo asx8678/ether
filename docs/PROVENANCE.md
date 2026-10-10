@@ -92,3 +92,5 @@ Applied to every copied crate (see `DECISIONS.md`):
 | `crates/engine/src/tools/shell_spec.rs` | `codex-rs/core/src/tools/handlers/shell_spec.rs` | `exec_command`/`write_stdin` specs only, without login, environment_id, prefix_rule, additional_permissions |
 | `crates/engine/src/tools/unified_exec.rs` | `codex-rs/core/src/tools/handlers/unified_exec.rs`, `unified_exec/{exec_command,write_stdin}.rs` | handlers on ether's `ToolHandler`; local only |
 | `crates/cli/replay/exec.jsonl` | – | new: sample replay where the model runs `echo hi` through `exec_command` |
+| `crates/llm/src/chat.rs` | – | new: Chat Completions request mapping and stream parser |
+| `scripts/check-prefix.py` | – | new: prompt-cache prefix check over a request log, after the idea of `codex-rs/core/tests/suite/prompt_caching.rs` |

@@ -10,7 +10,7 @@
 
 use crate::model_profile::ModelProfile;
 use codex_model_provider_info::ModelProviderInfo;
-use codex_model_provider_info::OPENAI_PROVIDER_ID;
+use codex_model_provider_info::WireApi;
 use codex_model_provider_info::built_in_model_providers;
 use codex_model_provider_info::merge_configured_model_providers;
 use codex_protocol::config_types::ReasoningSummary;
@@ -25,8 +25,26 @@ use std::path::PathBuf;
 
 const CONFIG_FILE: &str = "config.toml";
 const PROJECT_DIR: &str = ".ether";
-const DEFAULT_MODEL: &str = "gpt-5.1-codex";
+const DEFAULT_MODEL: &str = "glm-5.3";
 const OPENAI_API_KEY_ENV: &str = "OPENAI_API_KEY";
+
+/// Zro's OpenAI-compatible gateway, which serves GLM (the endpoint the `zro` launcher gives pi).
+pub const ZRO_PROVIDER_ID: &str = "zro";
+const ZRO_BASE_URL: &str = "https://zro.moonmath.ai/v1";
+const ZRO_API_KEY_ENV: &str = "ZRO_API_KEY";
+
+fn zro_provider() -> ModelProviderInfo {
+    ModelProviderInfo {
+        name: "Zro".to_string(),
+        base_url: Some(ZRO_BASE_URL.to_string()),
+        env_key: Some(ZRO_API_KEY_ENV.to_string()),
+        env_key_instructions: Some(
+            "Export the API key that `zro` (or pi) uses: `export ZRO_API_KEY=...`".to_string(),
+        ),
+        wire_api: WireApi::ChatCompletions,
+        ..ModelProviderInfo::default()
+    }
+}
 
 /// Base instructions sent as the system prompt. Copied from Codex's `models-manager/prompt.md`.
 pub const BASE_INSTRUCTIONS: &str = include_str!("../prompt.md");
@@ -168,15 +186,14 @@ fn resolve(
     ether_home: PathBuf,
     cwd: AbsolutePathBuf,
 ) -> Result<EngineConfig, ConfigError> {
-    let providers = merge_configured_model_providers(
-        built_in_model_providers(/*openai_base_url*/ None),
-        toml.model_providers,
-    )
-    .map_err(ConfigError::Providers)?;
+    let mut built_in = built_in_model_providers(/*openai_base_url*/ None);
+    built_in.insert(ZRO_PROVIDER_ID.to_string(), zro_provider());
+    let providers = merge_configured_model_providers(built_in, toml.model_providers)
+        .map_err(ConfigError::Providers)?;
     let model_provider_id = overrides
         .model_provider
         .or(toml.model_provider)
-        .unwrap_or_else(|| OPENAI_PROVIDER_ID.to_string());
+        .unwrap_or_else(|| ZRO_PROVIDER_ID.to_string());
     let mut model_provider = providers
         .get(&model_provider_id)
         .cloned()

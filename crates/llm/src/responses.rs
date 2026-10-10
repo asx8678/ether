@@ -64,7 +64,7 @@ impl ResponsesClient {
 }
 
 /// Turns an HTTP error status into [`ApiError::Api`] with the server's error message.
-fn map_transport_error(error: TransportError) -> ApiError {
+pub(crate) fn map_transport_error(error: TransportError) -> ApiError {
     match error {
         TransportError::Http { status, body, .. } => {
             let message = body

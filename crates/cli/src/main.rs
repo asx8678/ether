@@ -26,7 +26,8 @@ use ether_engine::ConfigOverrides;
 use ether_engine::Engine;
 use ether_llm::ModelClient;
 use ether_llm::ReplayModelClient;
-use ether_llm::ResponsesModelClient;
+use ether_llm::RequestLog;
+use ether_llm::client_for_provider;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::io::IsTerminal;
@@ -74,9 +75,9 @@ struct Cli {
     #[arg(long)]
     last: bool,
 
-    /// With --replay, append each request's prompt as a JSON line to FILE.
-    #[arg(long, value_name = "FILE", requires = "replay")]
-    replay_log: Option<PathBuf>,
+    /// Append each model request's body, as sent on the provider's wire API, as a JSON line to FILE.
+    #[arg(long, value_name = "FILE", alias = "replay-log")]
+    request_log: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -113,18 +114,17 @@ async fn main() -> anyhow::Result<()> {
         cwd: cli.cwd.clone(),
     })?;
 
-    let model: Arc<dyn ModelClient> = match cli.replay.as_deref() {
-        Some(path) => {
-            let mut client = ReplayModelClient::from_file(path)?;
-            if let Some(log) = cli.replay_log.as_deref() {
-                client = client
-                    .with_request_log(log)
-                    .with_context(|| format!("cannot open {}", log.display()))?;
-            }
-            Arc::new(client)
-        }
-        None => Arc::new(ResponsesModelClient::from_provider(&config.model_provider)?),
+    let mut model: Arc<dyn ModelClient> = match cli.replay.as_deref() {
+        Some(path) => Arc::new(ReplayModelClient::from_file(path)?),
+        None => client_for_provider(&config.model_provider)?,
     };
+    if let Some(log) = cli.request_log.as_deref() {
+        // The body is logged in the configured provider's wire format, also under --replay.
+        model = Arc::new(
+            RequestLog::new(model, config.model_provider.wire_api, log)
+                .with_context(|| format!("cannot open {}", log.display()))?,
+        );
+    }
 
     let resume_path = match (cli.resume.as_deref(), cli.last) {
         (Some(id_or_path), _) => Some(

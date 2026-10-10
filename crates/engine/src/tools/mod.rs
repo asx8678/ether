@@ -8,9 +8,9 @@
 mod apply_patch;
 mod plan;
 mod request_user_input;
-mod view_image;
 mod shell_spec;
 mod unified_exec;
+mod view_image;
 
 use crate::config::EngineConfig;
 use crate::session::Session;

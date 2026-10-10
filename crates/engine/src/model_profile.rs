@@ -24,12 +24,28 @@ pub struct ModelProfile {
 impl ModelProfile {
     /// Returns the built-in profile for `slug`, or the fallback profile.
     pub fn for_slug(slug: &str) -> Self {
+        if slug.starts_with("glm-") {
+            return Self::glm(slug);
+        }
         Self {
             slug: slug.to_string(),
             context_window: 272_000,
             effective_context_window_percent: 95,
             truncation_policy: TruncationPolicy::Bytes(10_000),
             supports_reasoning: slug.starts_with("gpt-5") || slug.starts_with('o'),
+            supports_parallel_tool_calls: true,
+        }
+    }
+
+    /// GLM through Zro. The context window is Zro's catalog value for GLM 5.2 (524,288 tokens),
+    /// used for 5.3 too until the live catalog says otherwise.
+    fn glm(slug: &str) -> Self {
+        Self {
+            slug: slug.to_string(),
+            context_window: 524_288,
+            effective_context_window_percent: 95,
+            truncation_policy: TruncationPolicy::Bytes(10_000),
+            supports_reasoning: true,
             supports_parallel_tool_calls: true,
         }
     }

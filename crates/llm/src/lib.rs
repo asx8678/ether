@@ -1,4 +1,5 @@
 // New in ether: model clients behind one interface (Responses API now, Chat Completions in Phase 4).
+mod chat;
 mod client;
 mod common;
 mod error;
@@ -7,10 +8,13 @@ mod responses;
 mod responses_headers;
 mod sse;
 
+pub use chat::build_chat_request;
 pub use client::ClientBuildError;
 pub use client::ModelClient;
 pub use client::Prompt;
-pub use client::ResponsesModelClient;
+pub use client::RequestLog;
+pub use client::client_for_provider;
+pub use client::request_body;
 pub use common::OpenAiVerbosity;
 pub use common::Reasoning;
 pub use common::ResponseEvent;
