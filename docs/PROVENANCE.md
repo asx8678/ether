@@ -82,3 +82,13 @@ Applied to every copied crate (see `DECISIONS.md`):
 | `crates/engine/src/compact.rs` | `codex-rs/core/src/compact.rs`, `core/src/context/compaction_summary.rs`, `codex-rs/prompts/src/compact.rs` | local compaction only |
 | `crates/engine/templates/permissions/*.md` | `codex-rs/prompts/templates/permissions/{sandbox_mode,approval_policy}/*.md` | none (flattened into one directory; `on_request_rule_request_permission.md` not copied) |
 | `crates/engine/templates/compact/{prompt,summary_prefix}.md` | `codex-rs/prompts/templates/compact/*.md` | none |
+| `crates/engine/src/exec/mod.rs` | `codex-rs/core/src/unified_exec/mod.rs`, `codex-rs/core/src/tools/context.rs` (`ExecCommandToolOutput`) | local processes only; constants and the model-facing output format kept |
+| `crates/engine/src/exec/backend.rs` | – | new: C4 local process backend on `codex-utils-pty` (spawn via `codex-sandboxing` transform + `spawn_process`, stdin, output buffers, interrupt, kill), in the role of exec-server's local backend and `codex-rs/core/src/unified_exec/process.rs`; `collect_until` ports `collect_output_until_deadline` without the pause state |
+| `crates/engine/src/exec/buffer.rs` | `codex-rs/core/src/unified_exec/head_tail_buffer.rs` | test helpers removed |
+| `crates/engine/src/exec/manager.rs` | `codex-rs/core/src/unified_exec/process_manager.rs`, `tools/orchestrator.rs`, `tools/runtimes/unified_exec.rs`, `unified_exec/async_watcher.rs` | one local path; orchestrator sequence (approve → sandbox → attempt → retry) inlined; no exec-server, guardian, network approval, stdin approval, hooks, telemetry, snapshots |
+| `crates/engine/src/exec/approval.rs` | `codex-rs/core/src/tools/sandboxing.rs`, `tools/approvals.rs`, `command_canonicalization.rs` | exec approval primitives only; approvals through `Session::request_approval`; no PowerShell |
+| `crates/engine/src/exec/policy.rs` | `codex-rs/core/src/exec_policy.rs` | rules from `$ETHER_HOME/rules/*.rules` only; no amendments; POSIX only |
+| `crates/engine/src/exec/shell.rs` | `codex-rs/core/src/shell.rs` | POSIX shells only; no exec-server shell info or PATH prepends |
+| `crates/engine/src/tools/shell_spec.rs` | `codex-rs/core/src/tools/handlers/shell_spec.rs` | `exec_command`/`write_stdin` specs only, without login, environment_id, prefix_rule, additional_permissions |
+| `crates/engine/src/tools/unified_exec.rs` | `codex-rs/core/src/tools/handlers/unified_exec.rs`, `unified_exec/{exec_command,write_stdin}.rs` | handlers on ether's `ToolHandler`; local only |
+| `crates/cli/replay/exec.jsonl` | – | new: sample replay where the model runs `echo hi` through `exec_command` |

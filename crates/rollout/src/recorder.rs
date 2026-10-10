@@ -1,4 +1,4 @@
-// Modified from OpenAI Codex (codex-rs/rollout/src/recorder.rs @ 806d973): removed unit tests; thread listing and resume lookup use rollout files only (SQLite state removed); realtime types removed.
+// Modified from OpenAI Codex (codex-rs/rollout/src/recorder.rs @ 806d973): removed unit tests; thread listing and resume lookup use rollout files only (SQLite state removed); realtime types removed; allow too_many_arguments on the filesystem listing.
 //! Persist Codex session rollouts (.jsonl) so sessions can be replayed or inspected later.
 
 use std::collections::HashSet;
@@ -445,6 +445,7 @@ impl RolloutRecorder {
         Ok(page)
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn list_threads_from_files(
         config: &impl RolloutConfigView,
         page_size: usize,

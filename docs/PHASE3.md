@@ -49,9 +49,9 @@ The trim is limited to these types. Others (`Collab*`, `Review`, MCP and memory 
 - [x] Registry, router and parallel calls (`tools/{registry,router,parallel}.rs`, `function_tool.rs`).
 - [x] `update_plan` handler.
 - [x] `request_user_input` handler.
-- [ ] C4 local process backend on `codex-utils-pty`: spawn, write stdin, read output, kill. The sandbox transform from `codex-sandboxing` wraps the command before spawn. No shell snapshots.
-- [ ] `exec_command` and `write_stdin` (`unified_exec`, local path only), with `exec_env.rs`, `shell.rs`, `command_canonicalization.rs`.
-- [ ] Approvals and sandboxing (`tools/{orchestrator,approvals,sandboxing}.rs`, `sandboxing/mod.rs`, `safety.rs`), and `exec_policy.rs`.
+- [x] C4 local process backend on `codex-utils-pty`: spawn, write stdin, read output, kill. The sandbox transform from `codex-sandboxing` wraps the command before spawn. No shell snapshots.
+- [x] `exec_command` and `write_stdin` (`unified_exec`, local path only), with `exec_env.rs`, `shell.rs`, `command_canonicalization.rs`.
+- [x] Approvals and sandboxing (`tools/{orchestrator,approvals,sandboxing}.rs`, `sandboxing/mod.rs`, `safety.rs`), and `exec_policy.rs`.
 - [x] `apply_patch` through `codex-apply-patch` and `codex-file-system`, plus `turn_diff_tracker.rs` (patch safety from `safety.rs` is in; command approvals stay with the exec item above).
 - [x] `view_image`.
 

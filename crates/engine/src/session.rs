@@ -4,6 +4,7 @@
 //! run in one process.
 
 use crate::config::EngineConfig;
+use crate::exec::ExecManager;
 use crate::history::History;
 use crate::rollout::Rollout;
 use crate::tools::ToolRouter;
@@ -37,6 +38,8 @@ pub(crate) struct Session {
     pub(crate) tools: ToolRouter,
     /// Files changed by patches in the running turn.
     pub(crate) turn_diffs: Mutex<TurnDiffs>,
+    /// Unified exec processes, approvals and exec-policy rules.
+    pub(crate) exec: ExecManager,
     tx_event: mpsc::Sender<Event>,
     /// Where the session is recorded; `None` when the rollout could not be opened.
     rollout: Option<Rollout>,
@@ -84,12 +87,14 @@ impl Session {
         init: SessionInit,
     ) -> Self {
         let tools = ToolRouter::new(built_in_handlers(&config));
+        let exec = ExecManager::new(&config.ether_home);
         Self {
             thread_id: init.thread_id,
             config,
             model,
             tools,
             turn_diffs: Mutex::new(TurnDiffs::default()),
+            exec,
             tx_event,
             rollout: init.rollout,
             state: Mutex::new(SessionState {

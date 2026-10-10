@@ -5,6 +5,7 @@ mod config;
 mod context;
 mod engine;
 mod event_mapping;
+mod exec;
 mod history;
 mod model_profile;
 mod normalize;
