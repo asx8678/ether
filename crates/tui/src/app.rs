@@ -237,6 +237,8 @@ impl App {
                 _ = tick.tick(), if self.is_animating() => self.on_tick(),
             }
         }
+        // Views still rendering will not arrive: show their source and the text held behind them.
+        self.abandon_views();
         self.flush_live_cells();
         self.draw(tui)?;
         Ok(())

@@ -1,7 +1,8 @@
 // New in ether: the `<terminal_display>` section, after the shape of the other world-state sections.
 //! What the front end can draw, in its own words (`EngineConfig::display_instructions`). The
-//! text is fixed for a session, so it is sent once; a resumed session whose front end draws
-//! differently gets a short update instead of a rewritten prefix.
+//! text is fixed for a session, so it is sent once and stays in the cached prefix. (A resumed
+//! session starts without a world-state snapshot, so, like the other sections, it is sent
+//! again in full after the resumed history.)
 
 use super::WorldStateSection;
 use crate::config::EngineConfig;
