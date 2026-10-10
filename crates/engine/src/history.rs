@@ -1,4 +1,4 @@
-// Modified from OpenAI Codex (codex-rs/core/src/context_manager/history.rs @ 806d973): recording, rollout replay, prompt normalization and token accounting only; retained context, guardian review history, rollback and media stripping are removed.
+// Modified from OpenAI Codex (codex-rs/core/src/context_manager/history.rs @ 806d973): recording, rollout replay, prompt normalization, token accounting and compacted-history replacement only; retained context, guardian review history, rollback and media stripping are removed.
 //! The conversation as the model sees it. History is append-only: items are recorded once, tool
 //! output is truncated when it is recorded, and prompts are built from a normalized copy, so each
 //! request's input starts with the previous request's input.
@@ -9,6 +9,7 @@ use codex_protocol::models::ResponseItem;
 use codex_protocol::protocol::TokenUsage;
 use codex_protocol::protocol::TokenUsageInfo;
 use codex_utils_output_truncation::TruncationPolicy;
+use codex_utils_output_truncation::approx_tokens_from_byte_count_i64;
 use codex_utils_output_truncation::truncate_function_output_payload;
 use codex_utils_output_truncation::with_serialization_allowance;
 use std::collections::HashSet;
@@ -56,8 +57,8 @@ impl History {
         }
     }
 
-    /// Replaces everything with a compaction's replacement history.
-    pub(crate) fn replace(&mut self, items: Vec<ResponseItemEnvelope>) {
+    /// Restores a compaction's replacement history read back from a rollout.
+    pub(crate) fn restore(&mut self, items: Vec<ResponseItemEnvelope>) {
         self.items = items;
     }
 
@@ -94,6 +95,32 @@ impl History {
             })
             .map(|envelope| envelope.item.clone())
             .collect()
+    }
+
+    /// Replaces every item with compacted history. The last request's token usage no longer
+    /// describes the context, so it becomes a byte-based estimate of the new items.
+    pub(crate) fn replace(&mut self, items: Vec<ResponseItem>) {
+        self.items = items.into_iter().map(ResponseItemEnvelope::new).collect();
+        let bytes: usize = self
+            .items
+            .iter()
+            .map(|envelope| serde_json::to_string(&envelope.item).map_or(0, |json| json.len()))
+            .sum();
+        let estimate = approx_tokens_from_byte_count_i64(i64::try_from(bytes).unwrap_or(i64::MAX));
+        if let Some(info) = &mut self.token_info {
+            info.last_token_usage = TokenUsage {
+                input_tokens: estimate,
+                total_tokens: estimate,
+                ..TokenUsage::default()
+            };
+        }
+    }
+
+    /// Tokens the last request put in the context window.
+    pub(crate) fn tokens_in_context(&self) -> i64 {
+        self.token_info
+            .as_ref()
+            .map_or(0, |info| info.last_token_usage.tokens_in_context_window())
     }
 
     pub(crate) fn token_info(&self) -> Option<&TokenUsageInfo> {

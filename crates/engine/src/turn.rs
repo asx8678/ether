@@ -1,8 +1,10 @@
-// New in ether: the turn loop, shaped like Codex's `run_turn` and `try_run_sampling_request` (codex-rs/core/src/session/turn.rs @ 806d973) and its stream retries (core/src/responses_retry.rs), without guardian, hooks, plugins, plan mode, analytics or compaction.
+// New in ether: the turn loop, shaped like Codex's `run_turn` and `try_run_sampling_request` (codex-rs/core/src/session/turn.rs @ 806d973) and its stream retries (core/src/responses_retry.rs), without guardian, hooks, plugins, plan mode, analytics or remote compaction; records world-state diffs at turn start and compacts locally when the context window fills.
 //! One turn: record the user's input, then sample the model until it stops calling tools.
 //! Interrupting a turn cancels the model stream and running tools; every tool call left open
 //! gets an "aborted" output so history stays well formed.
 
+use crate::compact::CompactError;
+use crate::compact::run_compact;
 use crate::context::TurnAborted;
 use crate::event_mapping::parse_turn_item;
 use crate::sampling::Effect;
@@ -55,21 +57,10 @@ pub(crate) async fn run_turn(
     input: Vec<ResponseItem>,
     cancel: CancellationToken,
 ) {
-    let started_at = chrono::Utc::now();
-    sess.send_event(
-        &turn_id,
-        EventMsg::TurnStarted(TurnStartedEvent {
-            turn_attribution: None,
-            turn_id: turn_id.clone(),
-            root_turn_id: Some(turn_id.clone()),
-            trace_id: None,
-            started_at: Some(started_at.timestamp()),
-            model_context_window: Some(sess.config.model.context_window),
-            collaboration_mode_kind: ModeKind::Default,
-        }),
-    )
-    .await;
+    let started_at = emit_turn_started(&sess, &turn_id).await;
     sess.record_turn_context(&turn_id).await;
+    // World-state items the model has not seen go before the user's message.
+    sess.record_world_state().await;
     record_user_input(&sess, &turn_id, input).await;
 
     let outcome = loop {
@@ -87,7 +78,63 @@ pub(crate) async fn run_turn(
         }
         break outcome;
     };
+    emit_turn_end(&sess, &turn_id, started_at, outcome).await;
+}
 
+/// Runs a turn that only compacts the conversation (`Op::Compact`).
+pub(crate) async fn run_compact_turn(
+    sess: Arc<Session>,
+    turn_id: String,
+    cancel: CancellationToken,
+) {
+    let started_at = emit_turn_started(&sess, &turn_id).await;
+    let outcome = match run_compact(&sess, &turn_id, &cancel).await {
+        Ok(()) => TurnOutcome::Completed {
+            last_agent_message: None,
+        },
+        Err(error) => compact_error_outcome(error),
+    };
+    sess.end_turn(&turn_id).await;
+    emit_turn_end(&sess, &turn_id, started_at, outcome).await;
+}
+
+fn compact_error_outcome(error: CompactError) -> TurnOutcome {
+    match error {
+        CompactError::Aborted => TurnOutcome::Aborted,
+        CompactError::Api(error) => TurnOutcome::Failed(ErrorEvent {
+            message: format!("Error running local compact task: {error}"),
+            codex_error_info: None,
+            misalignment: None,
+        }),
+    }
+}
+
+async fn emit_turn_started(sess: &Session, turn_id: &str) -> chrono::DateTime<chrono::Utc> {
+    let started_at = chrono::Utc::now();
+    sess.send_event(
+        turn_id,
+        EventMsg::TurnStarted(TurnStartedEvent {
+            turn_attribution: None,
+            turn_id: turn_id.to_string(),
+            root_turn_id: Some(turn_id.to_string()),
+            trace_id: None,
+            started_at: Some(started_at.timestamp()),
+            model_context_window: Some(sess.config.model.context_window),
+            collaboration_mode_kind: ModeKind::Default,
+        }),
+    )
+    .await;
+    started_at
+}
+
+/// Emits a turn's final event (and records the interrupted-turn marker on abort).
+async fn emit_turn_end(
+    sess: &Session,
+    turn_id: &str,
+    started_at: chrono::DateTime<chrono::Utc>,
+    outcome: TurnOutcome,
+) {
+    let turn_id = turn_id.to_string();
     let completed_at = chrono::Utc::now();
     let duration_ms = Some((completed_at - started_at).num_milliseconds());
     match outcome {
@@ -184,6 +231,14 @@ async fn turn_loop(sess: &Arc<Session>, turn_id: &str, cancel: &CancellationToke
         let pending = sess.take_pending_input().await;
         if !pending.is_empty() {
             record_user_input(sess, turn_id, pending).await;
+        }
+
+        // Compact when the last request filled the usable window: before the first request of a
+        // turn, or mid-turn when the model still has work to do.
+        if sess.context_window_exhausted().await
+            && let Err(error) = run_compact(sess, turn_id, cancel).await
+        {
+            return compact_error_outcome(error);
         }
 
         match sample_with_retries(sess, turn_id, cancel).await {

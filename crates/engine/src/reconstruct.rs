@@ -43,7 +43,7 @@ pub(crate) fn reconstruct_rollout(items: &[RolloutItem]) -> Option<RolloutRecons
     let mut history = History::default();
     let suffix = match checkpoint {
         Some((index, replacement)) => {
-            history.replace(replacement);
+            history.restore(replacement);
             &items[index + 1..]
         }
         None => items,

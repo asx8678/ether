@@ -59,7 +59,7 @@ Applied to every copied crate (see `DECISIONS.md`):
 | `crates/engine` (`ether-engine`, new) | – | new crate: `engine.rs` (handle and submission loop), `session.rs`, `turn.rs` (turn loop shaped like `codex-rs/core/src/session/turn.rs` and `responses_retry.rs`), `sampling.rs` (stream handling from `session/turn.rs` and `stream_events_utils.rs` as a pure step), `config.rs`, `model_profile.rs` (defaults from `models-manager/src/model_info.rs`) and `tools.rs` are new |
 | `crates/engine/prompt.md` | `codex-rs/models-manager/prompt.md` | none |
 | `crates/engine/src/normalize.rs` | `codex-rs/core/src/context_manager/normalize.rs` | `ensure_call_outputs_present` and `remove_orphan_outputs` only; `error_or_panic` becomes `warn!` |
-| `crates/engine/src/history.rs` | `codex-rs/core/src/context_manager/history.rs` | recording with tool-output truncation, prompt normalization and token accounting only; `close_open_calls` added |
+| `crates/engine/src/history.rs` | `codex-rs/core/src/context_manager/history.rs` | recording with tool-output truncation, prompt normalization and token accounting only; `close_open_calls` added; `replace` for compacted history |
 | `crates/engine/src/event_mapping.rs` | `codex-rs/core/src/event_mapping.rs` | user, assistant and reasoning items only; own contextual-marker list |
 | `crates/engine/src/context.rs` | `codex-rs/core/src/context/turn_aborted.rs` | user-role interrupted marker only |
 | `crates/cli` (`ether-cli`, binary `ether`, new) | – | new crate; `replay/hello.jsonl` is a sample replay file |
@@ -74,3 +74,11 @@ Applied to every copied crate (see `DECISIONS.md`):
 | `crates/engine/src/tools/view_image.rs` | `codex-rs/core/src/tools/handlers/{view_image,view_image_spec}.rs` | reads `LOCAL_FS`; resizes with `codex-utils-image` in the handler; `high` detail only; emits `ViewImageToolCall`; no modality check |
 | `crates/engine/src/tools/request_user_input.rs` | `codex-rs/core/src/tools/handlers/{request_user_input,request_user_input_spec}.rs` | no collaboration-mode or sub-agent checks; always blocking; no guardian retained context |
 | `crates/cli/replay/patch.jsonl` | – | new: replay where the model adds a file with `apply_patch` |
+| `crates/engine/src/world_state/mod.rs` | `codex-rs/core/src/context/world_state/mod.rs`, `core/src/context_manager/updates.rs` | three typed sections compared by value; no extensions, placement, hashing, merge patches or legacy matching |
+| `crates/engine/src/world_state/environment.rs` | `codex-rs/core/src/context/world_state/environment.rs`, `core/src/context/environment_context.rs` | one local environment: cwd, shell, current date |
+| `crates/engine/src/world_state/permissions.rs` | `codex-rs/core/src/context/world_state/permissions.rs`, `codex-rs/prompts/src/permissions_instructions.rs` | bundled sandbox/approval templates only; no exec-policy prefixes, granular/auto-review details or denied reads |
+| `crates/engine/src/world_state/agents_md.rs` | `codex-rs/core/src/context/world_state/agents_md.rs`, `core/src/context/user_instructions.rs` | typed snapshot only |
+| `crates/engine/src/agents_md.rs` | `codex-rs/core/src/agents_md.rs` | local sync discovery from the git root to cwd plus `$ETHER_HOME/AGENTS.md` |
+| `crates/engine/src/compact.rs` | `codex-rs/core/src/compact.rs`, `core/src/context/compaction_summary.rs`, `codex-rs/prompts/src/compact.rs` | local compaction only |
+| `crates/engine/templates/permissions/*.md` | `codex-rs/prompts/templates/permissions/{sandbox_mode,approval_policy}/*.md` | none (flattened into one directory; `on_request_rule_request_permission.md` not copied) |
+| `crates/engine/templates/compact/{prompt,summary_prefix}.md` | `codex-rs/prompts/templates/compact/*.md` | none |

@@ -57,8 +57,8 @@ The trim is limited to these types. Others (`Collab*`, `Review`, MCP and memory 
 
 ## Context
 
-- [ ] World-state sections: environment, permissions and AGENTS.md (`context/world_state/`, `agents_md.rs`).
-- [ ] Context-window tracking and local-only compaction (`session/context_window.rs`, `compact.rs`).
+- [x] World-state sections: environment, permissions and AGENTS.md (`context/world_state/`, `agents_md.rs`).
+- [x] Context-window tracking and local-only compaction (`session/context_window.rs`, `compact.rs`).
 - [x] Retries (`responses_retry.rs`).
 
 ## Rollout

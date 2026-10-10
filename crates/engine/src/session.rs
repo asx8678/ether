@@ -1,4 +1,4 @@
-// New in ether: per-session state and services, in the role of Codex's `Session` (codex-rs/core/src/session/session.rs @ 806d973) without its global services.
+// New in ether: per-session state and services, in the role of Codex's `Session` (codex-rs/core/src/session/session.rs @ 806d973) without its global services; also holds the world-state diff baseline.
 //! A [`Session`] is shared by the submission loop and the running turn. It owns everything one
 //! agent needs (configuration, model client, history, the event sender), so several sessions can
 //! run in one process.
@@ -9,6 +9,9 @@ use crate::rollout::Rollout;
 use crate::tools::ToolRouter;
 use crate::tools::built_in_handlers;
 use crate::turn_diff_tracker::TurnDiffs;
+use crate::world_state::WorldState;
+use crate::world_state::WorldStateSnapshot;
+use codex_history::CompactedItem;
 use codex_history::ResponseItemEnvelope;
 use codex_protocol::ThreadId;
 use codex_protocol::models::ResponseItem;
@@ -55,6 +58,8 @@ struct SessionState {
     turn_counter: u64,
     /// Requests waiting for the client, keyed by the id the client answers with.
     pending_requests: HashMap<String, PendingRequest>,
+    /// What the model last saw of the world state; `None` until the first turn.
+    world_state: Option<WorldStateSnapshot>,
 }
 
 /// A question the engine asked the client; dropping it answers "aborted".
@@ -170,6 +175,66 @@ impl Session {
             info: state.history.token_info().cloned(),
             rate_limits: None,
         }
+    }
+
+    /// Records the world-state items the model has not seen: the full initial context on the
+    /// first turn, then only what changed (for example a new date). Returns the items added.
+    pub(crate) async fn record_world_state(&self) -> Vec<ResponseItem> {
+        let current = WorldState::capture(&self.config);
+        let items = {
+            let mut state = self.state.lock().await;
+            let (snapshot, items) = current.render_diff(state.world_state.as_ref());
+            state.world_state = Some(snapshot);
+            items
+        };
+        // Through `record_items`, so the rollout gets them too.
+        self.record_items(&items).await;
+        items
+    }
+
+    /// Whether the last request filled the usable context window.
+    pub(crate) async fn context_window_exhausted(&self) -> bool {
+        let tokens = self.state.lock().await.history.tokens_in_context();
+        tokens >= self.config.model.usable_context_window()
+    }
+
+    /// Replaces history after compaction and makes `world_state` the new diff baseline.
+    pub(crate) async fn replace_compacted_history(
+        &self,
+        items: Vec<ResponseItem>,
+        world_state: WorldStateSnapshot,
+    ) -> TokenCountEvent {
+        let replacement: Vec<ResponseItemEnvelope> = items
+            .iter()
+            .cloned()
+            .map(ResponseItemEnvelope::new)
+            .collect();
+        let token_count = {
+            let mut state = self.state.lock().await;
+            state.history.replace(items);
+            state.world_state = Some(world_state);
+            TokenCountEvent {
+                info: state.history.token_info().cloned(),
+                rate_limits: None,
+            }
+        };
+        // Resume rebuilds history from the newest compaction's replacement history.
+        let compacted = CompactedItem {
+            message: String::new(),
+            replacement_history: Some(replacement),
+            retained_context: None,
+            mcp_resource_origins: None,
+            window_number: None,
+            first_window_id: None,
+            previous_window_id: None,
+            window_id: None,
+            compaction_response_id: None,
+            latest_token_usage_record: None,
+            resume_metadata: None,
+        };
+        self.persist_rollout_items(&[RolloutItem::Compacted(compacted)])
+            .await;
+        token_count
     }
 
     /// Starts tracking a new turn and returns its id and cancellation token, or `None` when a

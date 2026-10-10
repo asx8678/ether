@@ -9,6 +9,7 @@ use crate::rollout::Rollout;
 use crate::rollout::permission_profile;
 use crate::session::Session;
 use crate::session::SessionInit;
+use crate::turn::run_compact_turn;
 use crate::turn::run_turn;
 use codex_protocol::ThreadId;
 use codex_protocol::error::CodexErr;
@@ -171,6 +172,14 @@ async fn submission_loop(sess: Arc<Session>, mut rx_op: mpsc::UnboundedReceiver<
                     send_error(&sess, format!("no pending user input request with id {id}")).await;
                 }
             }
+            Op::Compact => match sess.begin_turn().await {
+                Some((turn_id, cancel)) => {
+                    tokio::spawn(run_compact_turn(Arc::clone(&sess), turn_id, cancel));
+                }
+                None => {
+                    send_error(&sess, "cannot compact while a turn is running".to_string()).await
+                }
+            },
             Op::Shutdown => {
                 sess.interrupt().await;
                 break;
