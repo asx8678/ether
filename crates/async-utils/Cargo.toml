@@ -1,0 +1,17 @@
+# Modified from OpenAI Codex (codex-rs/async-utils/Cargo.toml @ 806d973): removed dev-dependencies.
+[package]
+name = "codex-async-utils"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+rand = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread", "time"] }
+tokio-util.workspace = true
+
+[lib]
+doctest = false
