@@ -26,6 +26,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "codex-utils-string"
+version = "0.0.0"
+dependencies = [
+ "regex-lite",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "dirs"
 version = "6.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -131,6 +140,12 @@ dependencies = [
  "libredox",
  "thiserror",
 ]
+
+[[package]]
+name = "regex-lite"
+version = "0.1.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8d942b98df5e658f56f20d592c7f868833fe38115e65c33003d8cd224b0155da"
 
 [[package]]
 name = "schemars"
