@@ -1,0 +1,17 @@
+# Modified from OpenAI Codex (codex-rs/utils/output-truncation/Cargo.toml @ 806d973): removed dev-dependencies.
+[package]
+edition.workspace = true
+license.workspace = true
+name = "codex-utils-output-truncation"
+version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+codex-protocol = { workspace = true }
+codex-utils-string = { workspace = true }
+serde_json = { workspace = true }
+
+[lib]
+doctest = false

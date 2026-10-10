@@ -22,6 +22,7 @@ members = [
     "crates/execpolicy",
     "crates/utils/image",
     "crates/protocol",
+    "crates/utils/output-truncation",
 ]
 resolver = "2"
 
@@ -53,6 +54,7 @@ codex-extension-items = { path = "crates/extension-items" }
 codex-execpolicy = { path = "crates/execpolicy" }
 codex-utils-image = { path = "crates/utils/image" }
 codex-protocol = { path = "crates/protocol" }
+codex-utils-output-truncation = { path = "crates/utils/output-truncation" }
 
 # External crates, with the same specs as Codex's workspace.
 ansi-to-tui = "8.0.1"

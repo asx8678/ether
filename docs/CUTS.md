@@ -30,3 +30,4 @@ These apply to every crate and are only listed per crate when something besides 
 | `codex-protocol` | dev-dependencies: `anyhow`, `pretty_assertions`, `tempfile`, `tokio` | deleted from the manifest |
 | `codex-protocol` | `codex-network-proxy` (3 refs in 2 files) | `NetworkPolicyDecision`, `NetworkDecisionSource`, `EnvironmentNetworkPolicy` and the permission maps it holds copied into `src/network_proxy_types.rs` without proxy runtime/config methods |
 | `codex-protocol` | `codex-http-client` (2 refs in 1 file) | `RetryAfter` copied into `src/http_error.rs`; `HttpError` (was `RouteAwareRequestError`) replaced by a local error with message, optional status and source; added `httpdate` (in Codex lock) |
+| `codex-utils-output-truncation` | dev-dependencies: `pretty_assertions` | deleted from the manifest |
