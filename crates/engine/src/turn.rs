@@ -124,6 +124,7 @@ pub(crate) async fn run_turn(
             .await;
         }
         TurnOutcome::Aborted => {
+            sess.clear_pending_requests().await;
             sess.close_open_calls().await;
             let marker = ContextualUserFragment::into(TurnAborted::interrupted());
             sess.record_items(std::slice::from_ref(&marker)).await;
@@ -302,13 +303,15 @@ async fn run_sampling_request(
                 Effect::Record(item) => sess.record_items(std::slice::from_ref(&item)).await,
                 Effect::RunTool(call) => {
                     let sess = Arc::clone(sess);
+                    let turn_id = turn_id.to_string();
                     let cancel = tools_cancel.clone();
                     in_flight.push(tokio::spawn(async move {
+                        let tools = &sess.tools;
                         tokio::select! {
-                            output = sess.tools.dispatch(&call) => output,
+                            output = tools.dispatch(Arc::clone(&sess), turn_id, &call, cancel.clone()) => output,
                             _ = cancel.cancelled() => crate::tools::output_for(
                                 &call,
-                                call_id_of(&call),
+                                crate::tools::call_id_of(&call),
                                 "aborted".to_string(),
                             ),
                         }
@@ -356,13 +359,4 @@ async fn run_sampling_request(
         needs_follow_up: state.needs_follow_up(),
         last_agent_message: state.last_agent_message().map(str::to_string),
     })
-}
-
-fn call_id_of(call: &ResponseItem) -> String {
-    match call {
-        ResponseItem::FunctionCall { call_id, .. }
-        | ResponseItem::CustomToolCall { call_id, .. } => call_id.clone(),
-        ResponseItem::LocalShellCall { call_id, .. } => call_id.clone().unwrap_or_default(),
-        _ => String::new(),
-    }
 }

@@ -6,16 +6,21 @@
 use crate::config::EngineConfig;
 use crate::history::History;
 use crate::tools::ToolRouter;
+use crate::tools::built_in_handlers;
 use codex_protocol::ThreadId;
 use codex_protocol::models::ResponseItem;
 use codex_protocol::protocol::Event;
 use codex_protocol::protocol::EventMsg;
+use codex_protocol::protocol::ReviewDecision;
 use codex_protocol::protocol::TokenCountEvent;
 use codex_protocol::protocol::TokenUsage;
+use codex_protocol::request_user_input::RequestUserInputResponse;
 use ether_llm::ModelClient;
+use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::sync::mpsc;
+use tokio::sync::oneshot;
 use tokio_util::sync::CancellationToken;
 
 pub(crate) struct Session {
@@ -32,6 +37,14 @@ struct SessionState {
     history: History,
     active_turn: Option<ActiveTurn>,
     turn_counter: u64,
+    /// Requests waiting for the client, keyed by the id the client answers with.
+    pending_requests: HashMap<String, PendingRequest>,
+}
+
+/// A question the engine asked the client; dropping it answers "aborted".
+enum PendingRequest {
+    Approval(oneshot::Sender<ReviewDecision>),
+    UserInput(oneshot::Sender<RequestUserInputResponse>),
 }
 
 /// The turn currently running, if any.
@@ -48,11 +61,12 @@ impl Session {
         model: Arc<dyn ModelClient>,
         tx_event: mpsc::Sender<Event>,
     ) -> Self {
+        let tools = ToolRouter::new(built_in_handlers(&config));
         Self {
             thread_id: ThreadId::new(),
             config,
             model,
-            tools: ToolRouter::new(),
+            tools,
             tx_event,
             state: Mutex::new(SessionState::default()),
         }
@@ -175,5 +189,74 @@ impl Session {
             }
             None => false,
         }
+    }
+
+    /// Registers an approval request under `id` and returns where the decision arrives.
+    /// The receiver errors if the turn ends first; callers treat that as an abort.
+    pub(crate) async fn request_approval(&self, id: String) -> oneshot::Receiver<ReviewDecision> {
+        let (tx, rx) = oneshot::channel();
+        self.state
+            .lock()
+            .await
+            .pending_requests
+            .insert(id, PendingRequest::Approval(tx));
+        rx
+    }
+
+    /// Registers a `request_user_input` question under `id`.
+    pub(crate) async fn request_user_input(
+        &self,
+        id: String,
+    ) -> oneshot::Receiver<RequestUserInputResponse> {
+        let (tx, rx) = oneshot::channel();
+        self.state
+            .lock()
+            .await
+            .pending_requests
+            .insert(id, PendingRequest::UserInput(tx));
+        rx
+    }
+
+    /// Delivers the client's decision for approval `id`. Returns `false` if nothing waits.
+    pub(crate) async fn resolve_approval(&self, id: &str, decision: ReviewDecision) -> bool {
+        let pending = self.state.lock().await.pending_requests.remove(id);
+        match pending {
+            Some(PendingRequest::Approval(tx)) => tx.send(decision).is_ok(),
+            Some(other) => {
+                self.state
+                    .lock()
+                    .await
+                    .pending_requests
+                    .insert(id.to_string(), other);
+                false
+            }
+            None => false,
+        }
+    }
+
+    /// Delivers the client's answers for user-input request `id`.
+    pub(crate) async fn resolve_user_input(
+        &self,
+        id: &str,
+        response: RequestUserInputResponse,
+    ) -> bool {
+        let pending = self.state.lock().await.pending_requests.remove(id);
+        match pending {
+            Some(PendingRequest::UserInput(tx)) => tx.send(response).is_ok(),
+            Some(other) => {
+                self.state
+                    .lock()
+                    .await
+                    .pending_requests
+                    .insert(id.to_string(), other);
+                false
+            }
+            None => false,
+        }
+    }
+
+    /// Drops every pending request, so tools waiting on the client see an abort.
+    pub(crate) async fn clear_pending_requests(&self) {
+        self.state.lock().await.pending_requests.clear();
     }
 }

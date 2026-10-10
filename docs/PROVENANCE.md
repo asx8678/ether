@@ -63,3 +63,5 @@ Applied to every copied crate (see `DECISIONS.md`):
 | `crates/engine/src/event_mapping.rs` | `codex-rs/core/src/event_mapping.rs` | user, assistant and reasoning items only; own contextual-marker list |
 | `crates/engine/src/context.rs` | `codex-rs/core/src/context/turn_aborted.rs` | user-role interrupted marker only |
 | `crates/cli` (`ether-cli`, binary `ether`, new) | – | new crate; `replay/hello.jsonl` is a sample replay file |
+| `crates/engine/src/tools/mod.rs` | – | new: `ToolHandler` interface and router; parallel-safe calls share a read/write lock as in `codex-rs/core/src/tools/parallel.rs` |
+| `crates/engine/src/tools/plan.rs` | `codex-rs/core/src/tools/handlers/{plan,plan_spec}.rs` | on ether's `ToolHandler`; Plan-mode check removed |

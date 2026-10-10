@@ -79,26 +79,39 @@ async fn submission_loop(sess: Arc<Session>, mut rx_op: mpsc::UnboundedReceiver<
             Op::Interrupt => {
                 sess.interrupt().await;
             }
+            Op::ExecApproval { id, decision, .. } | Op::PatchApproval { id, decision } => {
+                if !sess.resolve_approval(&id, decision).await {
+                    send_error(&sess, format!("no pending approval with id {id}")).await;
+                }
+            }
+            Op::UserInputAnswer { id, response } => {
+                if !sess.resolve_user_input(&id, response).await {
+                    send_error(&sess, format!("no pending user input request with id {id}")).await;
+                }
+            }
             Op::Shutdown => {
                 sess.interrupt().await;
                 break;
             }
             other => {
-                let message = format!("unsupported operation: {}", other.kind());
-                sess.send_event(
-                    SESSION_EVENT_ID,
-                    EventMsg::Error(ErrorEvent {
-                        message,
-                        codex_error_info: None,
-                        misalignment: None,
-                    }),
-                )
-                .await;
+                send_error(&sess, format!("unsupported operation: {}", other.kind())).await;
             }
         }
     }
     sess.send_event(SESSION_EVENT_ID, EventMsg::ShutdownComplete)
         .await;
+}
+
+async fn send_error(sess: &Session, message: String) {
+    sess.send_event(
+        SESSION_EVENT_ID,
+        EventMsg::Error(ErrorEvent {
+            message,
+            codex_error_info: None,
+            misalignment: None,
+        }),
+    )
+    .await;
 }
 
 async fn submit_turn_input(
