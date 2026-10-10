@@ -7,6 +7,7 @@ use crate::config::EngineConfig;
 use crate::history::History;
 use crate::tools::ToolRouter;
 use crate::tools::built_in_handlers;
+use crate::turn_diff_tracker::TurnDiffs;
 use codex_protocol::ThreadId;
 use codex_protocol::models::ResponseItem;
 use codex_protocol::protocol::Event;
@@ -28,6 +29,8 @@ pub(crate) struct Session {
     pub(crate) config: EngineConfig,
     pub(crate) model: Arc<dyn ModelClient>,
     pub(crate) tools: ToolRouter,
+    /// Files changed by patches in the running turn.
+    pub(crate) turn_diffs: Mutex<TurnDiffs>,
     tx_event: mpsc::Sender<Event>,
     state: Mutex<SessionState>,
 }
@@ -67,6 +70,7 @@ impl Session {
             config,
             model,
             tools,
+            turn_diffs: Mutex::new(TurnDiffs::default()),
             tx_event,
             state: Mutex::new(SessionState::default()),
         }

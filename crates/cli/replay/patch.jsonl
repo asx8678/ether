@@ -1,0 +1,12 @@
+# Two recorded Responses API answers for `ether --replay`: an apply_patch function call that adds hello.txt, then a final message.
+# Response 1: the model calls apply_patch with the patch as the `input` argument.
+{"type": "response.created", "response": {"id": "resp_1"}}
+{"type": "response.output_item.added", "output_index": 0, "item": {"type": "function_call", "id": "fc_1", "call_id": "call_patch_1", "name": "apply_patch", "arguments": ""}}
+{"type": "response.output_item.done", "output_index": 0, "item": {"type": "function_call", "id": "fc_1", "call_id": "call_patch_1", "name": "apply_patch", "arguments": "{\"input\": \"*** Begin Patch\\n*** Add File: hello.txt\\n+Hello from ether!\\n*** End Patch\\n\"}"}}
+{"type": "response.completed", "response": {"id": "resp_1", "usage": {"input_tokens": 1500, "input_tokens_details": {"cached_tokens": 0}, "output_tokens": 30, "output_tokens_details": {"reasoning_tokens": 0}, "total_tokens": 1530}}}
+# Response 2: the final answer after the patch output.
+{"type": "response.created", "response": {"id": "resp_2"}}
+{"type": "response.output_item.added", "output_index": 0, "item": {"type": "message", "id": "msg_2", "role": "assistant", "content": []}}
+{"type": "response.output_text.delta", "item_id": "msg_2", "output_index": 0, "content_index": 0, "delta": "Created hello.txt."}
+{"type": "response.output_item.done", "output_index": 0, "item": {"type": "message", "id": "msg_2", "role": "assistant", "content": [{"type": "output_text", "text": "Created hello.txt."}]}}
+{"type": "response.completed", "response": {"id": "resp_2", "usage": {"input_tokens": 1560, "input_tokens_details": {"cached_tokens": 1500}, "output_tokens": 6, "output_tokens_details": {"reasoning_tokens": 0}, "total_tokens": 1566}}}

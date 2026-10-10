@@ -65,3 +65,10 @@ Applied to every copied crate (see `DECISIONS.md`):
 | `crates/cli` (`ether-cli`, binary `ether`, new) | – | new crate; `replay/hello.jsonl` is a sample replay file |
 | `crates/engine/src/tools/mod.rs` | – | new: `ToolHandler` interface and router; parallel-safe calls share a read/write lock as in `codex-rs/core/src/tools/parallel.rs` |
 | `crates/engine/src/tools/plan.rs` | `codex-rs/core/src/tools/handlers/{plan,plan_spec}.rs` | on ether's `ToolHandler`; Plan-mode check removed |
+| `crates/engine/src/tools/apply_patch.rs` | `codex-rs/core/src/tools/handlers/{apply_patch,apply_patch_spec}.rs`, `core/src/apply_patch.rs`, `core/src/tools/runtimes/apply_patch.rs` | on ether's `ToolHandler`; new JSON function variant (`{"input": ...}`) beside the freeform one; approval and application inline (no orchestrator); applied in-process on `LOCAL_FS` without a sandboxed helper; no hooks, streaming argument diffs, environment selection, permission widening or telemetry; `intercept_apply_patch` kept for the exec handler |
+| `crates/engine/assets/apply_patch.lark` | `codex-rs/core/assets/tools/apply_patch.lark` | provenance comment added |
+| `crates/engine/src/safety.rs` | `codex-rs/core/src/safety.rs` | patch checks only; permission profile from `SandboxMode`; no executor-managed route, Windows level or platform-sandbox probe |
+| `crates/engine/src/turn_diff_tracker.rs` | `codex-rs/core/src/turn_diff_tracker.rs` | one environment (no environment ids, one display root); unit tests removed; new `TurnDiffs` per-turn holder |
+| `crates/engine/src/tools/view_image.rs` | `codex-rs/core/src/tools/handlers/{view_image,view_image_spec}.rs` | reads `LOCAL_FS`; resizes with `codex-utils-image` in the handler; `high` detail only; emits `ViewImageToolCall`; no modality check |
+| `crates/engine/src/tools/request_user_input.rs` | `codex-rs/core/src/tools/handlers/{request_user_input,request_user_input_spec}.rs` | no collaboration-mode or sub-agent checks; always blocking; no guardian retained context |
+| `crates/cli/replay/patch.jsonl` | – | new: replay where the model adds a file with `apply_patch` |
