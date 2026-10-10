@@ -1,0 +1,17 @@
+# Modified from OpenAI Codex (codex-rs/process-hardening/Cargo.toml @ 806d973): removed dev-dependencies.
+[package]
+name = "codex-process-hardening"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "codex_process_hardening"
+path = "src/lib.rs"
+doctest = false
+
+[lints]
+workspace = true
+
+[dependencies]
+libc = { workspace = true }

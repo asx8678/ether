@@ -280,6 +280,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "codex-process-hardening"
+version = "0.0.0"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "codex-utils-absolute-path"
 version = "0.0.0"
 dependencies = [

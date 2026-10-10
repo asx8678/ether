@@ -18,3 +18,4 @@ These apply to every crate and are only listed per crate when something besides 
 | `codex-async-utils` | dev-dependencies: `pretty_assertions` | deleted from the manifest |
 | `codex-ansi-escape` | dev-dependencies: `pretty_assertions`, `tracing-subscriber` | deleted from the manifest |
 | `codex-file-search` | dev-dependencies: `pretty_assertions`, `tempfile` | deleted from the manifest |
+| `codex-process-hardening` | dev-dependencies: `pretty_assertions` | deleted from the manifest |
