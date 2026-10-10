@@ -1,3 +1,4 @@
+// Modified from OpenAI Codex (codex-rs/history/src/compaction_resume_metadata.rs @ 806d973): realtime types removed.
 //! Defines resume metadata stored directly on a compaction.
 
 use crate::RolloutItem;
@@ -32,7 +33,6 @@ pub struct PreviousTurnSettings {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cyber_access_program: Option<CyberAccessProgram>,
     pub comp_hash: Option<String>,
-    pub realtime_active: Option<bool>,
 }
 
 /// Returns the runtime version stored in a turn context or compaction resume metadata.
@@ -51,7 +51,6 @@ pub fn resume_multi_agent_version(item: &RolloutItem) -> Option<MultiAgentVersio
         | RolloutItem::WorldState(_)
         | RolloutItem::RetainedContext(_)
         | RolloutItem::SecurityRiskScore(_)
-        | RolloutItem::RealtimeItem(_)
         | RolloutItem::EventMsg(_) => None,
     }
 }

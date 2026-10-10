@@ -1,4 +1,4 @@
-// Modified from OpenAI Codex (codex-rs/protocol/src/lib.rs @ 806d973): added network_proxy_types and http_error modules.
+// Modified from OpenAI Codex (codex-rs/protocol/src/lib.rs @ 806d973): added network_proxy_types and http_error modules; realtime types removed.
 pub mod account;
 mod agent_path;
 pub mod auth;
@@ -38,10 +38,10 @@ pub mod mcp_policy;
 pub mod memory_citation;
 mod memory_version;
 pub use memory_version::MemoryVersion;
+pub mod http_error;
 pub mod models;
 pub mod network_policy;
 pub mod network_proxy_types;
-pub mod http_error;
 pub mod num_format;
 pub mod openai_models;
 pub mod parse_command;
@@ -50,7 +50,6 @@ mod permission_profile_snapshot;
 pub mod permissions;
 pub mod plan_tool;
 pub mod protocol;
-pub mod realtime;
 pub mod request_permissions;
 pub mod request_user_input;
 pub mod review_format;

@@ -1,4 +1,4 @@
-// Modified from OpenAI Codex (codex-rs/protocol/src/environment.rs @ 806d973): network-proxy types are local copies.
+// Modified from OpenAI Codex (codex-rs/protocol/src/environment.rs @ 806d973): network-proxy types are local copies; realtime types removed.
 //! Environment requests, thread selections, and attachment authority.
 //! Selections bind requests to the thread's capability roots before runtime use.
 
@@ -9,10 +9,10 @@ use crate::config_types::WindowsSandboxLevel;
 use crate::mcp_policy::EnvironmentMcpPolicy;
 use crate::models::PermissionProfile;
 use crate::models::PermissionProfileSnapshot;
+use crate::network_proxy_types::EnvironmentNetworkPolicy;
 use crate::protocol::AskForApproval;
 use crate::sandbox::SandboxType;
 use codex_execpolicy::RequirementsExecPolicy;
-use crate::network_proxy_types::EnvironmentNetworkPolicy;
 use codex_utils_absolute_path::AbsolutePathBuf;
 use codex_utils_path_uri::PathUri;
 

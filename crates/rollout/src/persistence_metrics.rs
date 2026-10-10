@@ -1,4 +1,4 @@
-// Modified from OpenAI Codex (codex-rs/rollout/src/persistence_metrics.rs @ 806d973): removed unit tests; metrics go through the local otel stand-in.
+// Modified from OpenAI Codex (codex-rs/rollout/src/persistence_metrics.rs @ 806d973): removed unit tests; metrics go through the local otel stand-in; realtime types removed.
 use std::borrow::Cow;
 use std::io::Write;
 use std::sync::Arc;
@@ -266,20 +266,6 @@ fn rollout_item_type(item: &RolloutItem) -> String {
         RolloutItem::WorldState(_) => "world_state".to_string(),
         RolloutItem::RetainedContext(_) => "retained_context".to_string(),
         RolloutItem::SecurityRiskScore(_) => "security_risk_score".to_string(),
-        RolloutItem::RealtimeItem(item) => match &item.content {
-            codex_protocol::realtime::RealtimeItemContent::RealtimeSessionStarted => {
-                "realtime.session_started".to_string()
-            }
-            codex_protocol::realtime::RealtimeItemContent::TranscriptSegment { .. } => {
-                "realtime.transcript_segment".to_string()
-            }
-            codex_protocol::realtime::RealtimeItemContent::BemItemPromoted { .. } => {
-                "realtime.bem_item_promoted".to_string()
-            }
-            codex_protocol::realtime::RealtimeItemContent::RealtimeSessionClosed { .. } => {
-                "realtime.session_closed".to_string()
-            }
-        },
         RolloutItem::EventMsg(EventMsg::ItemCompleted(event)) => {
             format!("event.item_completed.{}", turn_item_type(&event.item))
         }

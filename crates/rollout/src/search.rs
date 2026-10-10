@@ -1,3 +1,4 @@
+// Modified from OpenAI Codex (codex-rs/rollout/src/search.rs @ 806d973): realtime types removed.
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::io;
@@ -310,7 +311,6 @@ fn conversation_text_from_item(item: &RolloutItem) -> Option<String> {
         | RolloutItem::InterAgentCommunication(_)
         | RolloutItem::InterAgentCommunicationMetadata { .. }
         | RolloutItem::Compacted(_)
-        | RolloutItem::RealtimeItem(_)
         | RolloutItem::RetainedContext(_)
         | RolloutItem::SecurityRiskScore(_)
         | RolloutItem::TokenUsageRecord(_)

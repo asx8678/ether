@@ -1,4 +1,4 @@
-// Modified from OpenAI Codex (codex-rs/rollout/src/list.rs @ 806d973): thread path lookup uses rollout files only; guardian helpers copied from codex-state.
+// Modified from OpenAI Codex (codex-rs/rollout/src/list.rs @ 806d973): thread path lookup uses rollout files only; guardian helpers copied from codex-state; realtime types removed.
 #![allow(warnings, clippy::all)]
 
 use codex_utils_path as path_utils;
@@ -1039,9 +1039,6 @@ async fn read_head_summary(path: &Path, head_limit: usize) -> io::Result<HeadTai
             | RolloutItem::SecurityRiskScore(_) => {
                 // Not included in `head`; skip.
             }
-            RolloutItem::RealtimeItem(_) => {
-                // Realtime presentation does not affect model-visible thread summaries.
-            }
             RolloutItem::Compacted(_) => {
                 // Not included in `head`; skip.
             }
@@ -1113,7 +1110,6 @@ pub async fn read_head_for_summary(path: &Path) -> io::Result<Vec<serde_json::Va
                 | RolloutItem::TurnContext(_)
                 | RolloutItem::TokenUsageRecord(_)
                 | RolloutItem::WorldState(_)
-                | RolloutItem::RealtimeItem(_)
                 | RolloutItem::RetainedContext(_)
                 | RolloutItem::SecurityRiskScore(_)
                 | RolloutItem::EventMsg(_) => {}
@@ -1207,7 +1203,6 @@ pub async fn read_session_meta_line(path: &Path) -> io::Result<SessionMetaLine> 
             | RolloutItem::TurnContext(_)
             | RolloutItem::TokenUsageRecord(_)
             | RolloutItem::WorldState(_)
-            | RolloutItem::RealtimeItem(_)
             | RolloutItem::RetainedContext(_)
             | RolloutItem::SecurityRiskScore(_)
             | RolloutItem::EventMsg(_) => {}

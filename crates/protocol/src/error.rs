@@ -1,10 +1,12 @@
-// Modified from OpenAI Codex (codex-rs/protocol/src/error.rs @ 806d973): removed unit tests; http-client types are local copies.
+// Modified from OpenAI Codex (codex-rs/protocol/src/error.rs @ 806d973): removed unit tests; http-client types are local copies; realtime types removed.
 use crate::ThreadId;
 use crate::auth::KnownPlan;
 use crate::auth::PlanType;
 pub use crate::auth::RefreshTokenFailedError;
 pub use crate::auth::RefreshTokenFailedReason;
 use crate::exec_output::ExecToolCallOutput;
+use crate::http_error::HttpError;
+use crate::http_error::RetryAfter;
 use crate::network_policy::NetworkPolicyDecisionPayload;
 use crate::protocol::CodexErrorInfo;
 use crate::protocol::ErrorEvent;
@@ -18,8 +20,6 @@ use chrono::Local;
 use chrono::Utc;
 use codex_async_utils::CancelErr;
 use codex_async_utils::backoff;
-use crate::http_error::HttpError;
-use crate::http_error::RetryAfter;
 use codex_utils_string::truncate_middle_chars;
 use codex_utils_string::truncate_middle_with_token_budget;
 use http::StatusCode;

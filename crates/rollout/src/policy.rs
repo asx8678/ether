@@ -1,3 +1,4 @@
+// Modified from OpenAI Codex (codex-rs/rollout/src/policy.rs @ 806d973): realtime types removed.
 use std::borrow::Cow;
 
 use crate::RolloutItem;
@@ -34,9 +35,6 @@ pub fn persisted_rollout_item(
                 Cow::Borrowed(_) => Cow::Borrowed(item),
                 Cow::Owned(event) => Cow::Owned(RolloutItem::EventMsg(event)),
             })
-        }
-        RolloutItem::RealtimeItem(_) => {
-            matches!(history_mode, ThreadHistoryMode::Paginated).then_some(Cow::Borrowed(item))
         }
         // Persist Codex executive markers so we can analyze flows (e.g., compaction, API turns).
         RolloutItem::Compacted(_)
@@ -174,10 +172,6 @@ fn persisted_event_msg(
         | EventMsg::AuthRecoveryStarted(_)
         | EventMsg::AuthRecoveryCompleted(_)
         | EventMsg::GuardianWarning(_)
-        | EventMsg::RealtimeConversationStarted(_)
-        | EventMsg::RealtimeConversationSdp(_)
-        | EventMsg::RealtimeConversationRealtime(_)
-        | EventMsg::RealtimeConversationClosed(_)
         | EventMsg::SafetyBuffering(_)
         | EventMsg::ModelReroute(_)
         | EventMsg::ModelVerification(_)
@@ -202,7 +196,6 @@ fn persisted_event_msg(
         | EventMsg::PatchApplyBegin(_)
         | EventMsg::PatchApplyUpdated(_)
         | EventMsg::TurnDiff(_)
-        | EventMsg::RealtimeConversationListVoicesResponse(_)
         | EventMsg::McpStartupUpdate(_)
         | EventMsg::McpStartupComplete(_)
         | EventMsg::WebSearchBegin(_)

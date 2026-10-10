@@ -1,4 +1,4 @@
-// Modified from OpenAI Codex (codex-rs/rollout/src/recorder.rs @ 806d973): removed unit tests; thread listing and resume lookup use rollout files only (SQLite state removed).
+// Modified from OpenAI Codex (codex-rs/rollout/src/recorder.rs @ 806d973): removed unit tests; thread listing and resume lookup use rollout files only (SQLite state removed); realtime types removed.
 //! Persist Codex session rollouts (.jsonl) so sessions can be replayed or inspected later.
 
 use std::collections::HashSet;
@@ -1709,7 +1709,6 @@ async fn resume_candidate_matches_cwd(
             | RolloutItem::InterAgentCommunicationMetadata { .. }
             | RolloutItem::Compacted(_)
             | RolloutItem::WorldState(_)
-            | RolloutItem::RealtimeItem(_)
             | RolloutItem::TokenUsageRecord(_)
             | RolloutItem::RetainedContext(_)
             | RolloutItem::SecurityRiskScore(_)
