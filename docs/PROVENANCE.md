@@ -42,3 +42,4 @@ Applied to every copied crate (see `DECISIONS.md`):
 | `crates/shell-command` (`codex-shell-command`) | `codex-rs/shell-command` | unit tests stripped from 10 file(s), 2 test file(s) deleted; Windows-only code stripped from 1 file(s); deleted unreachable `src/command_safety/powershell_parser.rs`; manifest: removed `[dev-dependencies]` |
 | `crates/history` (`codex-history`) | `codex-rs/history` | unit tests stripped from 5 file(s), 5 test file(s) deleted; manifest: removed `[dev-dependencies]` |
 | `crates/context-fragments` (`codex-context-fragments`) | `codex-rs/context-fragments` | unit tests stripped from 2 file(s), 2 test file(s) deleted; manifest: removed `[dev-dependencies]` |
+| `crates/git-utils` (`codex-git-utils`) | `codex-rs/git-utils` | unit tests stripped from 8 file(s), 4 test file(s) deleted; Windows-only code stripped from 3 file(s); manifest: removed `[dev-dependencies]` |

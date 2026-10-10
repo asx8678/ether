@@ -35,3 +35,4 @@ These apply to every crate and are only listed per crate when something besides 
 | `codex-shell-command` | dev-dependencies: `anyhow`, `pretty_assertions`, `tempfile`; modules: `src/command_safety/powershell_parser.rs` | deleted from the manifest; unreachable module files deleted |
 | `codex-history` | dev-dependencies: `anyhow`, `pretty_assertions` | deleted from the manifest |
 | `codex-context-fragments` | dev-dependencies: `pretty_assertions` | deleted from the manifest |
+| `codex-git-utils` | dev-dependencies: `codex-utils-cargo-bin`, `pretty_assertions` | deleted from the manifest |
