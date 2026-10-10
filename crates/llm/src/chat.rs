@@ -61,6 +61,12 @@ pub fn build_chat_request(prompt: &Prompt) -> Value {
     {
         body.insert("reasoning_effort".to_string(), json!(effort.as_str()));
     }
+    if prompt.glm_thinking {
+        body.insert(
+            "thinking".to_string(),
+            json!({ "type": "enabled", "clear_thinking": false }),
+        );
+    }
     body.insert("stream".to_string(), json!(true));
     body.insert(
         "stream_options".to_string(),

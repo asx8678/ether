@@ -19,6 +19,8 @@ pub struct ModelProfile {
     pub supports_reasoning: bool,
     /// Whether the model may call several tools in one response.
     pub supports_parallel_tool_calls: bool,
+    /// GLM: send Z.AI's `thinking` object on Chat Completions.
+    pub glm_thinking: bool,
 }
 
 impl ModelProfile {
@@ -34,19 +36,26 @@ impl ModelProfile {
             truncation_policy: TruncationPolicy::Bytes(10_000),
             supports_reasoning: slug.starts_with("gpt-5") || slug.starts_with('o'),
             supports_parallel_tool_calls: true,
+            glm_thinking: false,
         }
     }
 
-    /// GLM through Zro. The context window is Zro's catalog value for GLM 5.2 (524,288 tokens),
-    /// used for 5.3 too until the live catalog says otherwise.
+    /// GLM through Zro. GLM 5.3's window is Zro's live catalog value (`max_input_tokens`
+    /// 1,048,576); other GLM slugs use the bundled catalog's GLM 5.2 value (524,288).
     fn glm(slug: &str) -> Self {
+        let context_window = if slug.starts_with("glm-5.3") {
+            1_048_576
+        } else {
+            524_288
+        };
         Self {
             slug: slug.to_string(),
-            context_window: 524_288,
+            context_window,
             effective_context_window_percent: 95,
             truncation_policy: TruncationPolicy::Bytes(10_000),
             supports_reasoning: true,
             supports_parallel_tool_calls: true,
+            glm_thinking: true,
         }
     }
 

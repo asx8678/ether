@@ -44,6 +44,9 @@ pub struct Prompt {
     pub verbosity: Option<Verbosity>,
     /// Optional JSON schema for the final answer.
     pub output_schema: Option<Value>,
+    /// Chat Completions only: send Z.AI's `thinking: {type: "enabled", clear_thinking: false}`,
+    /// which keeps GLM's reasoning across turns (ether replays it in each request).
+    pub glm_thinking: bool,
 }
 
 /// Streams model responses for prompts. Implementations hold no per-turn state.

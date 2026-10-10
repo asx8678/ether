@@ -7,7 +7,8 @@ Facts from the installed `@moonmath-ai/zro` 0.2.2 package:
 - Gateway `https://zro.moonmath.ai/v1`; API key in `ZRO_API_KEY` (bearer auth).
 - pi is configured with no `developer` role (system messages instead), `reasoning_effort` (GLM levels `none`, `high`, `max`) and `max_tokens` as the output-limit field.
 - Codex is configured against the same gateway with `wire_api = "responses"`.
-- The bundled catalog lists `glm-5.2` (524,288-token context, 64,000 output tokens); `glm-5.3` is checked against the live `/v1/models`.
+- The bundled catalog lists `glm-5.2` (524,288-token context, 64,000 output tokens). The live `/v1/models` lists `glm-5.3` with `max_input_tokens` 1,048,576 and `max_output_tokens` 131,000.
+- Live checks: two `system` messages, and a `system` message mid-conversation, are accepted; a repeated 4k-token prefix reports `prompt_tokens_details.cached_tokens` (4,160 of 4,181).
 
 ## Provider and model
 
@@ -21,7 +22,7 @@ Facts from the installed `@moonmath-ai/zro` 0.2.2 package:
 - [x] Stream to `ResponseEvent`s: content deltas as output text; `reasoning_content` deltas as reasoning; tool-call deltas accumulated by index into one `FunctionCall` each when the stream ends; usage as token usage, with `prompt_tokens_details.cached_tokens` as cached input tokens.
 - [x] History to messages: instructions and developer items as `system`; each model response (reasoning, text, tool calls) as one `assistant` message replaying `reasoning_content` and tool-call argument strings byte for byte; tool outputs as `tool` messages.
 - [x] Tools: function tools only, converted to the chat `function` form.
-- [ ] Reasoning parameters: `reasoning_effort` from config; the brief's `thinking: {type: "enabled", clear_thinking: false}` is checked against the live gateway.
+- [x] Reasoning parameters: `reasoning_effort` from config (`model_reasoning_effort`: `none`, `high`, `max`), plus `thinking: {type: "enabled", clear_thinking: false}` for GLM. Both are accepted live; either one alone produces `reasoning_content`.
 - [x] Responses-only fields (`prompt_cache_key`, `store`, `include`, Responses headers) are not sent.
 
 ## Cache rules
@@ -34,4 +35,4 @@ Already true from Phase 3: system prompt and tools are byte-identical across req
 ## Gate
 
 - [x] The prefix check passes on a replayed session.
-- [ ] A live ten-turn session with GLM 5.3 on your machine, including a shell command and an `apply_patch` edit; the second request reports cached tokens and the CLI shows them.
+- [x] A live ten-turn session with GLM 5.3 on your machine, including a shell command and an `apply_patch` edit; the second request reports cached tokens and the CLI shows them. Run on 2026-10-10: 10 turns, 19 requests, 6 shell commands, 4 patches; `check-prefix.py` passed on all 19; every request after the first was cached (for example 7256 in, 7232 cached).

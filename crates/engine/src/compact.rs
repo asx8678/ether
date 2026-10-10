@@ -127,6 +127,7 @@ async fn request_summary(
             reasoning: None,
             verbosity: None,
             output_schema: None,
+            glm_thinking: false,
         };
         match drain_to_completed(sess, cancel, &prompt).await {
             Ok(output) => return Ok(last_assistant_message(&output).unwrap_or_default()),

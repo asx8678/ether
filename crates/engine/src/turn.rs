@@ -320,6 +320,7 @@ async fn build_prompt(sess: &Session) -> Prompt {
         reasoning,
         verbosity: None,
         output_schema: None,
+        glm_thinking: config.model.glm_thinking,
     }
 }
 
