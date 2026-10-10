@@ -138,7 +138,9 @@ async fn request_summary(
                 input.remove(0);
                 retries = 0;
             }
-            Err(CompactError::Api(error)) if retries < max_retries => {
+            Err(CompactError::Api(error))
+                if retries < max_retries && !matches!(error, ApiError::ContextWindowExceeded) =>
+            {
                 retries += 1;
                 sess.send_event(
                     turn_id,
@@ -177,7 +179,13 @@ async fn drain_to_completed(
         };
         match event {
             Some(Ok(ResponseEvent::OutputItemDone(item))) => output.push(item),
-            Some(Ok(ResponseEvent::Completed { .. })) => return Ok(output),
+            Some(Ok(ResponseEvent::Completed { token_usage, .. })) => {
+                // Counted in the session totals, as Codex does.
+                if let Some(usage) = &token_usage {
+                    sess.update_token_usage(usage).await;
+                }
+                return Ok(output);
+            }
             Some(Ok(_)) => {}
             Some(Err(error)) => return Err(CompactError::Api(error)),
             None => {

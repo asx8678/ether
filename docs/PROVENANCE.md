@@ -59,7 +59,7 @@ Applied to every copied crate (see `DECISIONS.md`):
 | `crates/engine` (`ether-engine`, new) | – | new crate: `engine.rs` (handle and submission loop), `session.rs`, `turn.rs` (turn loop shaped like `codex-rs/core/src/session/turn.rs` and `responses_retry.rs`), `sampling.rs` (stream handling from `session/turn.rs` and `stream_events_utils.rs` as a pure step), `config.rs`, `model_profile.rs` (defaults from `models-manager/src/model_info.rs`) and `tools.rs` are new |
 | `crates/engine/prompt.md` | `codex-rs/models-manager/prompt.md` | none |
 | `crates/engine/src/normalize.rs` | `codex-rs/core/src/context_manager/normalize.rs` | `ensure_call_outputs_present` and `remove_orphan_outputs` only; `error_or_panic` becomes `warn!` |
-| `crates/engine/src/history.rs` | `codex-rs/core/src/context_manager/history.rs` | recording with tool-output truncation, prompt normalization and token accounting only; `close_open_calls` added |
+| `crates/engine/src/history.rs` | `codex-rs/core/src/context_manager/history.rs` | recording with tool-output truncation, prompt normalization and token accounting only; `close_open_calls` added; `replace` for compacted history |
 | `crates/engine/src/event_mapping.rs` | `codex-rs/core/src/event_mapping.rs` | user, assistant and reasoning items only; own contextual-marker list |
 | `crates/engine/src/context.rs` | `codex-rs/core/src/context/turn_aborted.rs` | user-role interrupted marker only |
 | `crates/cli` (`ether-cli`, binary `ether`, new) | – | new crate; `replay/hello.jsonl` is a sample replay file |
