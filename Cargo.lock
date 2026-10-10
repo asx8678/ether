@@ -287,6 +287,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "codex-uds"
+version = "0.0.0"
+dependencies = [
+ "libc",
+ "tokio",
+]
+
+[[package]]
 name = "codex-utils-absolute-path"
 version = "0.0.0"
 dependencies = [

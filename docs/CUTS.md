@@ -19,3 +19,4 @@ These apply to every crate and are only listed per crate when something besides 
 | `codex-ansi-escape` | dev-dependencies: `pretty_assertions`, `tracing-subscriber` | deleted from the manifest |
 | `codex-file-search` | dev-dependencies: `pretty_assertions`, `tempfile` | deleted from the manifest |
 | `codex-process-hardening` | dev-dependencies: `pretty_assertions` | deleted from the manifest |
+| `codex-uds` | Windows dependencies: `async-io`, `tokio-util`, `uds_windows`, `windows-sys`; dev-dependencies: `pretty_assertions`, `tempfile`, `tokio`; modules: `src/windows_peer.rs`, `src/windows_security.rs`, `src/windows_socket_validation.rs` | deleted from the manifest; unreachable module files deleted |

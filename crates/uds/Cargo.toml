@@ -1,0 +1,20 @@
+# Modified from OpenAI Codex (codex-rs/uds/Cargo.toml @ 806d973): removed Windows-only dependencies, dev-dependencies.
+[package]
+name = "codex-uds"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "codex_uds"
+path = "src/lib.rs"
+doctest = false
+
+[lints]
+workspace = true
+
+[dependencies]
+tokio = { workspace = true, features = ["fs", "net", "rt"] }
+
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }
