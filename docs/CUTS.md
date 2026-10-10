@@ -32,3 +32,4 @@ These apply to every crate and are only listed per crate when something besides 
 | `codex-protocol` | `codex-http-client` (2 refs in 1 file) | `RetryAfter` copied into `src/http_error.rs`; `HttpError` (was `RouteAwareRequestError`) replaced by a local error with message, optional status and source; added `httpdate` (in Codex lock) |
 | `codex-utils-output-truncation` | dev-dependencies: `pretty_assertions` | deleted from the manifest |
 | `codex-file-system` (local impl from exec-server) | `SandboxedFileSystem` (helper-process filesystem), `ExecServerRuntimeOptions` | removed; `LocalFileSystem` always uses the direct implementation and drops the sandbox context, which the copied direct implementation would otherwise reject |
+| `codex-shell-command` | dev-dependencies: `anyhow`, `pretty_assertions`, `tempfile`; modules: `src/command_safety/powershell_parser.rs` | deleted from the manifest; unreachable module files deleted |
