@@ -40,16 +40,22 @@ impl HtmlFenceFilter {
         out
     }
 
-    /// The answer ended: whatever is held comes out as text (an unclosed block stays code).
+    /// The answer ended: a block whose closing fence is the last, unterminated line is complete;
+    /// anything else held comes out as text (an unclosed block stays code).
     pub(crate) fn finish(&mut self) -> Vec<FenceOutput> {
         let mut out = Vec::new();
-        let mut rest = self
-            .block
-            .take()
-            .map(|block| block.source)
-            .unwrap_or_default();
-        rest.push_str(&std::mem::take(&mut self.line));
-        push_text(&mut out, rest);
+        let line = std::mem::take(&mut self.line);
+        match self.block.take() {
+            Some(mut block) if is_closer(&line) => {
+                block.source.push_str(&line);
+                out.push(FenceOutput::Block {
+                    html: block.html,
+                    source: block.source,
+                });
+            }
+            Some(block) => push_text(&mut out, block.source + &line),
+            None => push_text(&mut out, line),
+        }
         out
     }
 
