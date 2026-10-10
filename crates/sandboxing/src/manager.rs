@@ -1,4 +1,4 @@
-// Modified from OpenAI Codex (codex-rs/sandboxing/src/manager.rs @ 806d973): removed unit tests; removed Windows-only code; removed managed network proxy, MXC and Windows sandbox plumbing; cyber-access and Windows sandbox types removed.
+// Modified from OpenAI Codex (codex-rs/sandboxing/src/manager.rs @ 806d973): removed unit tests; removed Windows-only code; removed managed network proxy, MXC and Windows sandbox plumbing; cyber-access and Windows sandbox types removed; Windows sandbox level removed.
 use crate::LinuxSandboxPidNamespace;
 #[cfg(target_os = "linux")]
 use crate::bwrap::WSL1_BWRAP_WARNING;
@@ -10,7 +10,6 @@ use crate::policy_transforms::effective_permission_profile;
 use crate::policy_transforms::should_require_platform_sandbox;
 #[cfg(target_os = "macos")]
 use crate::seatbelt::MacosSeatbeltProfile;
-use codex_protocol::config_types::WindowsSandboxLevel;
 use codex_protocol::models::AdditionalPermissionProfile;
 use codex_protocol::models::PermissionProfile;
 use codex_protocol::permissions::FileSystemSandboxPolicy;
@@ -32,7 +31,7 @@ pub enum SandboxablePreference {
     Forbid,
 }
 
-pub fn get_platform_sandbox(_windows_sandbox_enabled: bool) -> Option<SandboxType> {
+pub fn get_platform_sandbox() -> Option<SandboxType> {
     if cfg!(target_os = "macos") {
         Some(SandboxType::MacosSeatbelt)
     } else if cfg!(target_os = "linux") {
@@ -88,7 +87,6 @@ pub struct SandboxExecRequest {
     pub sandbox: SandboxType,
     // TODO(anp): Reconcile these backend copies with the supplied sandbox context
     // (TurnEnvironment::sandbox_context for turns), preserving this launch snapshot.
-    pub windows_sandbox_level: WindowsSandboxLevel,
     pub permission_profile: PermissionProfile,
     pub arg0: Option<String>,
 }
@@ -106,7 +104,6 @@ pub struct SandboxTransformRequest<'a> {
     // TODO(anp): Reconcile these backend inputs with the supplied sandbox context
     // (TurnEnvironment::sandbox_context for turns) so selection shares its authority.
     pub use_legacy_landlock: bool,
-    pub windows_sandbox_level: WindowsSandboxLevel,
 }
 
 /// Bundled arguments for a sandbox transformation whose result will be spawned
@@ -262,13 +259,12 @@ impl SandboxManager {
         &self,
         permission_profile: &PermissionProfile,
         pref: SandboxablePreference,
-        windows_sandbox_type: SandboxType,
         has_managed_network_requirements: bool,
     ) -> SandboxType {
         if !self.should_sandbox(permission_profile, pref, has_managed_network_requirements) {
             return SandboxType::None;
         }
-        get_platform_sandbox(windows_sandbox_type != SandboxType::None).unwrap_or(SandboxType::None)
+        get_platform_sandbox().unwrap_or(SandboxType::None)
     }
 
     /// Returns whether the request needs a sandbox, independently of whether
@@ -306,7 +302,6 @@ impl SandboxManager {
             sandbox_policy_cwd,
             sandbox_exe,
             use_legacy_landlock,
-            windows_sandbox_level,
         } = request;
         let additional_permissions = command.additional_permissions.take();
         let base_effective_permission_profile =
@@ -408,7 +403,6 @@ impl SandboxManager {
             env: command.env,
             network_environment_id: environment_id.map(str::to_string),
             sandbox,
-            windows_sandbox_level,
             permission_profile,
             arg0: arg0_override,
         })

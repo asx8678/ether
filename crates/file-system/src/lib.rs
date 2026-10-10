@@ -1,12 +1,10 @@
-// Modified from OpenAI Codex (codex-rs/file-system/src/lib.rs @ 806d973): added the local implementation (src/local) ported from exec-server.
+// Modified from OpenAI Codex (codex-rs/file-system/src/lib.rs @ 806d973): added the local implementation (src/local) ported from exec-server; Windows sandbox level removed.
 mod environment_accessor;
 mod exec_permission_profile_serde;
 mod find_up;
 mod local;
 
 use bytes::Bytes;
-use codex_protocol::config_types::WindowsSandboxLevel;
-use codex_protocol::config_types::WindowsSandboxProxySettingsMode;
 use codex_protocol::models::ManagedFileSystemPermissions;
 use codex_protocol::models::PermissionProfile;
 use codex_protocol::models::SandboxEnforcement;
@@ -29,11 +27,11 @@ pub use environment_accessor::FileSystemEnvironmentAccessor;
 pub use find_up::FindUpErrorPolicy;
 pub use find_up::find_nearest_ancestor_with_markers;
 pub use find_up::find_nearest_native_ancestor_with_markers;
+use futures::Stream;
 pub use local::FsOpenMode;
 pub use local::LOCAL_FS;
 pub use local::LocalFileSystem;
 pub use local::read_sensitive_file_to_string;
-use futures::Stream;
 use serde::Deserialize;
 use serde::Serialize;
 use std::future::Future;
@@ -327,30 +325,6 @@ impl From<ExecPermissionProfile> for PermissionProfile {
     }
 }
 
-/// Windows sandbox choice encoded in executor RPCs.
-///
-/// The serialized field retains its legacy `windowsSandboxLevel` name for compatibility, but MXC
-/// is a sandbox implementation rather than a RestrictedToken level.
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum WindowsSandboxSelection {
-    #[default]
-    Disabled,
-    RestrictedToken,
-    Elevated,
-    Mxc,
-}
-
-impl From<WindowsSandboxLevel> for WindowsSandboxSelection {
-    fn from(level: WindowsSandboxLevel) -> Self {
-        match level {
-            WindowsSandboxLevel::Disabled => Self::Disabled,
-            WindowsSandboxLevel::RestrictedToken => Self::RestrictedToken,
-            WindowsSandboxLevel::Elevated => Self::Elevated,
-        }
-    }
-}
-
 /// Filesystem sandbox policy and the selected executor paths needed to interpret it.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -372,10 +346,6 @@ pub struct FileSystemSandboxContext {
     /// Executor-local default directories used to resolve `:tmpdir` policy entries.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub temporary_directories: Option<Vec<PathUri>>,
-    #[serde(rename = "windowsSandboxLevel")]
-    pub windows_sandbox_selection: WindowsSandboxSelection,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub windows_sandbox_proxy_settings_mode: Option<WindowsSandboxProxySettingsMode>,
     #[serde(default)]
     pub use_legacy_landlock: bool,
 }
@@ -409,8 +379,6 @@ impl FileSystemSandboxContext {
             cwd,
             user_home_dir: None,
             temporary_directories: None,
-            windows_sandbox_selection: WindowsSandboxSelection::Disabled,
-            windows_sandbox_proxy_settings_mode: None,
             use_legacy_landlock: false,
         }
     }
@@ -429,11 +397,6 @@ impl FileSystemSandboxContext {
             .permissions
             .file_system_sandbox_policy()
             .has_full_disk_write_access_for_convention(self.cwd.infer_path_convention())
-    }
-
-    /// Whether this context selects either supported Windows sandbox implementation.
-    pub fn windows_sandbox_is_requested(&self) -> bool {
-        self.windows_sandbox_selection != WindowsSandboxSelection::Disabled
     }
 
     /// Checks that explicit permission paths can be enforced by the current host. An
@@ -486,10 +449,6 @@ pub struct WireFileSystemSandboxContext {
     user_home_dir: Option<PathUri>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     temporary_directories: Option<Vec<PathUri>>,
-    #[serde(rename = "windowsSandboxLevel")]
-    windows_sandbox_selection: WindowsSandboxSelection,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    windows_sandbox_proxy_settings_mode: Option<WindowsSandboxProxySettingsMode>,
     #[serde(default)]
     use_legacy_landlock: bool,
 }
@@ -513,8 +472,6 @@ impl From<FileSystemSandboxContext> for WireFileSystemSandboxContext {
             workspace_roots,
             user_home_dir,
             temporary_directories,
-            windows_sandbox_selection,
-            windows_sandbox_proxy_settings_mode,
             use_legacy_landlock,
         } = sandbox;
         let permissions = ExecPermissionProfile::from(permissions);
@@ -558,8 +515,6 @@ impl From<FileSystemSandboxContext> for WireFileSystemSandboxContext {
             }),
             user_home_dir,
             temporary_directories,
-            windows_sandbox_selection,
-            windows_sandbox_proxy_settings_mode,
             use_legacy_landlock,
         }
     }
@@ -605,8 +560,6 @@ impl WireFileSystemSandboxContext {
             },
             user_home_dir: self.user_home_dir,
             temporary_directories: self.temporary_directories,
-            windows_sandbox_selection: self.windows_sandbox_selection,
-            windows_sandbox_proxy_settings_mode: self.windows_sandbox_proxy_settings_mode,
             use_legacy_landlock: self.use_legacy_landlock,
         }
     }

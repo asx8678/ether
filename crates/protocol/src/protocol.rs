@@ -1,4 +1,4 @@
-// Modified from OpenAI Codex (codex-rs/protocol/src/protocol.rs @ 806d973): removed unit tests; realtime types removed; guardian types removed; cyber-access and Windows sandbox types removed.
+// Modified from OpenAI Codex (codex-rs/protocol/src/protocol.rs @ 806d973): removed unit tests; realtime types removed; guardian types removed; cyber-access and Windows sandbox types removed; Windows sandbox level removed.
 //! Defines the protocol for a Codex session between a client and an agent.
 //!
 //! Uses a SQ (Submission Queue) / EQ (Event Queue) pattern to asynchronously communicate
@@ -27,7 +27,6 @@ use crate::config_types::CollaborationMode;
 use crate::config_types::ModeKind;
 use crate::config_types::Personality;
 use crate::config_types::ReasoningSummary as ReasoningSummaryConfig;
-use crate::config_types::WindowsSandboxLevel;
 use crate::dynamic_tools::DynamicToolCallOutputContentItem;
 use crate::dynamic_tools::DynamicToolCallRequest;
 use crate::dynamic_tools::DynamicToolResponse;
@@ -234,9 +233,6 @@ pub struct ThreadSettingsOverrides {
     /// Named or built-in profile that produced `permission_profile`, if the
     /// update selected a profile rather than supplying raw permissions.
     pub active_permission_profile: Option<ActivePermissionProfile>,
-
-    /// Updated Windows sandbox mode for tool execution.
-    pub windows_sandbox_level: Option<WindowsSandboxLevel>,
 
     /// Updated model slug. When set, the model info is derived automatically.
     pub model: Option<String>,

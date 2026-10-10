@@ -1,11 +1,11 @@
 // Modified from OpenAI Codex (codex-rs/exec-server/src/local_file_system_read.rs @ 806d973): removed unit tests.
 //! Bounded blocking file reads that stop between chunks when their async caller is dropped.
 
+use super::FsOpenMode;
+use super::no_follow;
+use super::regular_file;
 use crate::FILE_READ_CHUNK_SIZE;
 use crate::ReadFileOptions;
-use super::no_follow;
-use super::FsOpenMode;
-use super::regular_file;
 use codex_utils_absolute_path::AbsolutePathBuf;
 use std::io;
 use std::io::Read;

@@ -1,4 +1,4 @@
-// Modified from OpenAI Codex (codex-rs/protocol/src/config_types.rs @ 806d973): removed unit tests.
+// Modified from OpenAI Codex (codex-rs/protocol/src/config_types.rs @ 806d973): removed unit tests; Windows sandbox level removed.
 use codex_utils_absolute_path::AbsolutePathBuf;
 use codex_utils_redacted_string::RedactedString;
 use schemars::JsonSchema;
@@ -288,28 +288,6 @@ fn string_enum_schema_with_description(values: &[&str], description: &str) -> Sc
             .collect(),
     );
     Schema::Object(schema)
-}
-
-#[derive(
-    Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Display, JsonSchema, TS,
-)]
-#[serde(rename_all = "kebab-case")]
-#[strum(serialize_all = "kebab-case")]
-pub enum WindowsSandboxLevel {
-    #[default]
-    Disabled,
-    RestrictedToken,
-    Elevated,
-}
-
-/// Controls whether a Windows sandbox launch reconciles persistent proxy settings or preserves
-/// the settings established by another launch.
-#[derive(Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub enum WindowsSandboxProxySettingsMode {
-    #[default]
-    Reconcile,
-    Preserve,
 }
 
 /// Deprecated: `friendly` and `pragmatic` no longer select a style.
