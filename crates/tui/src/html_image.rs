@@ -59,17 +59,23 @@ impl PageStyle {
 /// What the model is told when views are drawn (the `<terminal_display>` context section).
 /// `dark` is the terminal background, if known. The text is fixed for a session: it is part of
 /// the prompt-cache prefix.
-pub fn view_instructions(dark: Option<bool>) -> String {
+pub fn view_instructions(dark: Option<bool>, width_px: Option<u32>) -> String {
     let background = match dark {
         Some(true) => "dark",
         Some(false) => "light",
         None => "terminal's",
     };
+    let width = match width_px {
+        Some(width) => format!("about {width}px"),
+        None => "the terminal's width".to_string(),
+    };
     format!(
         "Your answers are shown in a terminal that draws views: put HTML with inline CSS in a \
          ```view block and the user sees it rendered as an image in its place. Static only (no \
          JavaScript, no external URLs); inline SVG works for charts. The page is transparent over \
-         the {background} background and text defaults to the terminal's colour.\n\
+         the {background} background and text defaults to the terminal's colour. Views are drawn \
+         {width} wide: size columns with max-content, fr or percentages, not fixed pixel widths \
+         (a wider view is scaled down to fit).\n\
          When the answer has numbers to compare (sizes, percentages, counts, timings), show them \
          in a view with bars or gauges instead of listing them. Also use views for charts, \
          dashboards and side-by-side comparisons. Short answers, simple lists, code and text the \
@@ -77,11 +83,30 @@ pub fn view_instructions(dark: Option<bool>) -> String {
          prose; add at most one sentence.\n\
          Example:\n\
          ```view\n\
-         <div style=\"display:grid;grid-template-columns:auto 160px auto;gap:4px 10px;align-items:center\">\n\
+         <div style=\"display:grid;grid-template-columns:max-content minmax(120px,1fr) max-content;gap:4px 10px;align-items:center\">\n\
          <span>disk</span><div style=\"background:#8884;height:10px\"><div style=\"width:63%;height:100%;background:#4c9\"></div></div><span>63%</span>\n\
          </div>\n\
          ```"
     )
+}
+
+/// Device pixels per CSS pixel: about 2 on a Retina display, where cells are ~32px tall.
+fn device_scale(cell_height: f64) -> f64 {
+    (cell_height / 17.0).round().max(1.0)
+}
+
+/// The CSS width a view gets at `cols` terminal columns.
+fn css_width_for(cols: u16, (cell_width, cell_height): (f64, f64)) -> u32 {
+    ((f64::from(cols) * cell_width) / device_scale(cell_height)).floor() as u32
+}
+
+/// The width views are drawn at in the current terminal, in CSS pixels rounded to 50, for the
+/// instructions (`None` if the terminal does not report its pixel size).
+pub fn view_width_px() -> Option<u32> {
+    let cell = cell_pixels()?;
+    let (columns, _) = crossterm::terminal::size().ok()?;
+    let width = css_width_for(columns.saturating_sub(2), cell);
+    Some((width / 50).max(1) * 50)
 }
 
 /// Whether the terminal background is dark, from a colour query (`None` if it does not
@@ -170,9 +195,11 @@ pub(crate) fn render_html(
     style: &PageStyle,
 ) -> Result<RenderedImage, String> {
     let (cell_width, cell_height) = cell;
-    // Device pixels per CSS pixel: about 2 on a Retina display, where cells are ~32px tall.
-    let scale = (cell_height / 17.0).round().max(1.0);
-    let css_width = ((f64::from(max_cols) * cell_width) / scale).floor() as u32;
+    let scale = device_scale(cell_height);
+    let css_width = css_width_for(max_cols, cell);
+    // Flowing content wraps at `css_width`; the window is wider so a view with fixed widths is
+    // captured whole and scaled down below instead of being clipped.
+    let layout_width = css_width + css_width / 2;
     // Text about the size of the terminal's.
     let font_px = (cell_height / scale * 0.78).round().clamp(11.0, 24.0);
     let page = wrap_page(html, css_width, font_px, style);
@@ -183,12 +210,26 @@ pub(crate) fn render_html(
         rand::random::<u32>()
     ));
     std::fs::create_dir_all(&dir).map_err(|err| format!("temp dir: {err}"))?;
-    let result = render_in(chrome, &page, css_width, scale, &dir);
+    let result = render_in(chrome, &page, layout_width, scale, &dir);
     let _ = std::fs::remove_dir_all(&dir);
     let png = result?;
 
     let image = image::load_from_memory(&png).map_err(|err| format!("decode: {err}"))?;
     let (width, height) = drawn_extent(&image).ok_or("the page drew nothing")?;
+    let max_width = (f64::from(max_cols) * cell_width).floor() as u32;
+    let (image, width, height) = if width > max_width {
+        // Wider than the terminal: shrink the drawn part to fit.
+        let factor = f64::from(max_width) / f64::from(width);
+        let new_height = ((f64::from(height) * factor).round() as u32).max(1);
+        let shrunk = image.crop_imm(0, 0, width, height).resize_exact(
+            max_width,
+            new_height,
+            image::imageops::FilterType::Lanczos3,
+        );
+        (shrunk, max_width, new_height)
+    } else {
+        (image, width, height)
+    };
     let cols = ((f64::from(width) / cell_width).ceil() as u16).clamp(1, max_cols);
     let rows = ((f64::from(height) / cell_height).ceil() as u16).clamp(1, MAX_ROWS);
     // Crop to the cell grid so kitty does not stretch the image.
@@ -209,7 +250,7 @@ pub(crate) fn render_html(
 fn render_in(
     chrome: &PathBuf,
     page_html: &str,
-    css_width: u32,
+    window_width: u32,
     scale: f64,
     dir: &std::path::Path,
 ) -> Result<Vec<u8>, String> {
@@ -219,7 +260,7 @@ fn render_in(
     let mut child = Command::new(chrome)
         .arg("--headless")
         .arg(format!("--screenshot={}", shot.display()))
-        .arg(format!("--window-size={css_width},{PAGE_HEIGHT}"))
+        .arg(format!("--window-size={window_width},{PAGE_HEIGHT}"))
         .arg(format!("--force-device-scale-factor={scale}"))
         .arg("--default-background-color=00000000")
         .arg("--hide-scrollbars")

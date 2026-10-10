@@ -12,6 +12,7 @@ mod ui_spec_cell;
 pub use app::run;
 pub use html_image::terminal_is_dark;
 pub use html_image::view_instructions;
+pub use html_image::view_width_px;
 pub use html_image::views_available;
 pub use ui_spec_cell::render_ui_plain;
 

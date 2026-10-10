@@ -152,7 +152,10 @@ async fn main() -> anyhow::Result<()> {
     if use_tui && ether_tui::views_available() {
         // The TUI draws ```view blocks; tell the model (render_ui then defaults to off).
         config.display_instructions =
-            Some(ether_tui::view_instructions(ether_tui::terminal_is_dark()));
+            Some(ether_tui::view_instructions(
+                ether_tui::terminal_is_dark(),
+                ether_tui::view_width_px(),
+            ));
     }
     let mut engine = match resume_path {
         Some(path) => Engine::resume(config, model, &path)
