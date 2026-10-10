@@ -1,8 +1,8 @@
+// Modified from OpenAI Codex (codex-rs/protocol/src/sandbox.rs @ 806d973): cyber-access and Windows sandbox types removed.
 //! Identifies the sandbox implementation and overrides selected for a command.
 
 use serde::Deserialize;
 use serde::Serialize;
-
 
 /// Controller decision that overrides normal sandbox selection for a command.
 #[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
@@ -40,4 +40,3 @@ impl SandboxType {
         }
     }
 }
-

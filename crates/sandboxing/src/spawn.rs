@@ -1,4 +1,4 @@
-// Modified from OpenAI Codex (codex-rs/sandboxing/src/spawn.rs @ 806d973): removed Windows-only code; removed the Windows sandbox spawn request.
+// Modified from OpenAI Codex (codex-rs/sandboxing/src/spawn.rs @ 806d973): removed Windows-only code; removed the Windows sandbox spawn request; cyber-access and Windows sandbox types removed.
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -33,7 +33,6 @@ pub async fn spawn_process(request: SpawnRequest<'_>) -> Result<SpawnedProcess> 
             spawned
         }
     };
-
 
     let (program, args) = request
         .command

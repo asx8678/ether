@@ -1,4 +1,4 @@
-// Modified from OpenAI Codex (codex-rs/protocol/src/openai_models.rs @ 806d973): removed unit tests; guardian types removed.
+// Modified from OpenAI Codex (codex-rs/protocol/src/openai_models.rs @ 806d973): removed unit tests; guardian types removed; cyber-access and Windows sandbox types removed.
 //! Shared model metadata types exchanged between Codex services and clients.
 //!
 //! These types are serialized across core, TUI, app-server, and SDK boundaries, so field defaults
@@ -38,7 +38,6 @@ pub use incremental_tools::IncrementalToolMessages;
 
 #[path = "openai_models/reasoning_effort.rs"]
 mod reasoning_effort;
-
 
 pub const SPEED_TIER_FAST: &str = "fast";
 

@@ -1,4 +1,4 @@
-// Modified from OpenAI Codex (codex-rs/sandboxing/src/manager.rs @ 806d973): removed unit tests; removed Windows-only code; removed managed network proxy, MXC and Windows sandbox plumbing.
+// Modified from OpenAI Codex (codex-rs/sandboxing/src/manager.rs @ 806d973): removed unit tests; removed Windows-only code; removed managed network proxy, MXC and Windows sandbox plumbing; cyber-access and Windows sandbox types removed.
 use crate::LinuxSandboxPidNamespace;
 #[cfg(target_os = "linux")]
 use crate::bwrap::WSL1_BWRAP_WARNING;
@@ -265,7 +265,6 @@ impl SandboxManager {
         windows_sandbox_type: SandboxType,
         has_managed_network_requirements: bool,
     ) -> SandboxType {
-
         if !self.should_sandbox(permission_profile, pref, has_managed_network_requirements) {
             return SandboxType::None;
         }
@@ -421,7 +420,6 @@ impl SandboxManager {
     ) -> Result<SandboxExecRequest, SandboxTransformError> {
         self.transform(request.transform)
     }
-
 }
 
 pub fn compatibility_sandbox_policy_for_permission_profile(

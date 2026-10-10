@@ -1,4 +1,4 @@
-// Modified from OpenAI Codex (codex-rs/history/src/compaction_resume_metadata.rs @ 806d973): realtime types removed.
+// Modified from OpenAI Codex (codex-rs/history/src/compaction_resume_metadata.rs @ 806d973): realtime types removed; cyber-access and Windows sandbox types removed.
 //! Defines resume metadata stored directly on a compaction.
 
 use crate::RolloutItem;

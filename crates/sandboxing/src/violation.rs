@@ -1,4 +1,4 @@
-// Modified from OpenAI Codex (codex-rs/sandboxing/src/violation.rs @ 806d973): removed unit tests; removed proxy blocked-request reporting.
+// Modified from OpenAI Codex (codex-rs/sandboxing/src/violation.rs @ 806d973): removed unit tests; removed proxy blocked-request reporting; cyber-access and Windows sandbox types removed.
 use crate::SandboxType;
 use codex_protocol::exec_output::ExecToolCallOutput;
 use tracing::warn;

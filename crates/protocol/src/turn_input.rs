@@ -1,3 +1,4 @@
+// Modified from OpenAI Codex (codex-rs/protocol/src/turn_input.rs @ 806d973): cyber-access and Windows sandbox types removed.
 //! Turn-input request and result types shared by Core's submission APIs.
 
 use crate::AgentPath;
@@ -180,7 +181,6 @@ pub enum TurnInputMode {
     /// Steer only if this exact turn is active.
     Steer { expected_turn_id: String },
 }
-
 
 /// Options for the new-turn branch of a submission.
 ///

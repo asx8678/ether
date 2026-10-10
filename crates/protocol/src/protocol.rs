@@ -1,4 +1,4 @@
-// Modified from OpenAI Codex (codex-rs/protocol/src/protocol.rs @ 806d973): removed unit tests; realtime types removed; guardian types removed.
+// Modified from OpenAI Codex (codex-rs/protocol/src/protocol.rs @ 806d973): removed unit tests; realtime types removed; guardian types removed; cyber-access and Windows sandbox types removed.
 //! Defines the protocol for a Codex session between a client and an agent.
 //!
 //! Uses a SQ (Submission Queue) / EQ (Event Queue) pattern to asynchronously communicate
