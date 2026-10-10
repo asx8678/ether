@@ -31,6 +31,7 @@ members = [
     "crates/apply-patch",
     "crates/codex-client",
     "crates/model-provider-info",
+    "crates/sandboxing",
 ]
 resolver = "2"
 
@@ -71,6 +72,7 @@ codex-git-utils = { path = "crates/git-utils" }
 codex-apply-patch = { path = "crates/apply-patch" }
 codex-client = { path = "crates/codex-client" }
 codex-model-provider-info = { path = "crates/model-provider-info" }
+codex-sandboxing = { path = "crates/sandboxing" }
 
 # External crates, with the same specs as Codex's workspace.
 ansi-to-tui = "8.0.1"

@@ -725,6 +725,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "codex-sandboxing"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "codex-protocol",
+ "codex-uds",
+ "codex-utils-absolute-path",
+ "codex-utils-path-uri",
+ "codex-utils-pty",
+ "dunce",
+ "libc",
+ "regex-lite",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "which",
+]
+
+[[package]]
 name = "codex-shell-command"
 version = "0.0.0"
 dependencies = [

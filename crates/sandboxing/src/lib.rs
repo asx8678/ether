@@ -1,0 +1,84 @@
+// Modified from OpenAI Codex (codex-rs/sandboxing/src/lib.rs @ 806d973): removed Windows-only code; removed Windows, MXC and network-proxy exports.
+#[cfg(target_os = "linux")]
+mod bwrap;
+mod denial;
+pub mod landlock;
+mod linux_pid_namespace;
+mod manager;
+pub mod policy_transforms;
+mod sandbox_integrity;
+#[cfg(target_os = "macos")]
+pub mod seatbelt;
+mod spawn;
+mod terminal_queries;
+mod violation;
+
+#[cfg(target_os = "linux")]
+pub use bwrap::find_executable_in_search_paths;
+#[cfg(target_os = "linux")]
+pub use bwrap::find_pre_sandbox_executable_in_path;
+#[cfg(target_os = "linux")]
+pub use bwrap::find_system_bwrap_in_path;
+#[cfg(target_os = "linux")]
+pub use bwrap::system_bwrap_warning;
+pub use denial::is_likely_executor_managed_sandbox_denied;
+pub use denial::is_likely_sandbox_denied;
+pub use linux_pid_namespace::LinuxSandboxPidNamespace;
+pub use manager::SandboxCommand;
+pub use manager::SandboxDirectSpawnTransformRequest;
+pub use manager::SandboxExecRequest;
+pub use manager::SandboxManager;
+pub use manager::SandboxTransformError;
+pub use manager::SandboxTransformRequest;
+pub use manager::SandboxType;
+pub use manager::SandboxablePreference;
+pub use manager::compatibility_sandbox_policy_for_permission_profile;
+pub use manager::get_platform_sandbox;
+pub use manager::with_managed_mitm_ca_readable_root;
+pub use sandbox_integrity::FileContentsChecker;
+pub use sandbox_integrity::IntegrityFinding;
+pub use sandbox_integrity::IntegrityFindingDetails;
+pub use spawn::SpawnRequest;
+pub use spawn::spawn_process;
+pub use violation::FileSystemSandboxViolation;
+pub use violation::FileSystemSandboxViolationReason;
+pub use violation::NetworkSandboxViolation;
+pub use violation::SandboxViolationBackend;
+pub use violation::SandboxViolationEvent;
+pub use violation::record_filesystem_sandbox_violation;
+pub use violation::record_sandbox_violation;
+use codex_protocol::error::CodexErr;
+
+#[cfg(not(target_os = "linux"))]
+pub fn system_bwrap_warning(
+    _permission_profile: &codex_protocol::models::PermissionProfile,
+    _sandbox_policy_cwd: &std::path::Path,
+) -> Option<String> {
+    None
+}
+
+impl From<SandboxTransformError> for CodexErr {
+    fn from(err: SandboxTransformError) -> Self {
+        match err {
+            error @ SandboxTransformError::InvalidCommandCwd { .. }
+            | error @ SandboxTransformError::InvalidSandboxPolicyCwd { .. } => {
+                CodexErr::InvalidRequest(error.to_string())
+            }
+            SandboxTransformError::MissingLinuxSandboxExecutable => {
+                CodexErr::LandlockSandboxExecutableNotProvided
+            }
+            #[cfg(target_os = "macos")]
+            SandboxTransformError::SeatbeltPreparation(message) => {
+                CodexErr::UnsupportedOperation(message)
+            }
+            #[cfg(target_os = "linux")]
+            SandboxTransformError::Wsl1UnsupportedForBubblewrap => {
+                CodexErr::UnsupportedOperation(crate::bwrap::WSL1_BWRAP_WARNING.to_string())
+            }
+            #[cfg(not(target_os = "macos"))]
+            SandboxTransformError::SeatbeltUnavailable => CodexErr::UnsupportedOperation(
+                "seatbelt sandbox is only available on macOS".to_string(),
+            ),
+        }
+    }
+}

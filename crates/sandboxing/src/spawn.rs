@@ -1,0 +1,80 @@
+// Modified from OpenAI Codex (codex-rs/sandboxing/src/spawn.rs @ 806d973): removed Windows-only code; removed the Windows sandbox spawn request.
+use std::collections::HashMap;
+use std::path::Path;
+
+use anyhow::Context;
+use anyhow::Result;
+use codex_utils_pty::SpawnedProcess;
+use codex_utils_pty::TerminalSize;
+
+use crate::SandboxType;
+use crate::terminal_queries::respond_to_terminal_queries;
+
+/// Executor-native process launch request shared by local and exec-server execution.
+pub struct SpawnRequest<'a> {
+    pub command: &'a [String],
+    pub cwd: &'a Path,
+    pub env: &'a HashMap<String, String>,
+    pub arg0: &'a Option<String>,
+    pub sandbox: SandboxType,
+    pub tty: bool,
+    pub stdin_open: bool,
+    pub inherited_fds: codex_utils_pty::ChildFds<'a>,
+}
+
+/// Spawn a process using the backend selected by the prepared sandbox request.
+#[tracing::instrument(name = "codex.process.spawn", skip_all)]
+pub async fn spawn_process(request: SpawnRequest<'_>) -> Result<SpawnedProcess> {
+    let tty = request.tty;
+    let finish_spawn = |spawned| {
+        if tty {
+            respond_to_terminal_queries(spawned)
+        } else {
+            spawned
+        }
+    };
+
+    if request.sandbox == SandboxType::WindowsRestrictedToken {
+
+        #[cfg(not(target_os = "windows"))]
+        anyhow::bail!("Windows sandbox process spawn is unavailable on this platform");
+    }
+
+    let (program, args) = request
+        .command
+        .split_first()
+        .context("missing program for process spawn")?;
+    let spawned = if tty {
+        codex_utils_pty::pty::spawn_process(
+            program,
+            args,
+            request.cwd,
+            request.env,
+            request.arg0,
+            TerminalSize::default(),
+            request.inherited_fds,
+        )
+        .await
+    } else if request.stdin_open {
+        codex_utils_pty::pipe::spawn_process(
+            program,
+            args,
+            request.cwd,
+            request.env,
+            request.arg0,
+            request.inherited_fds.as_slice(),
+        )
+        .await
+    } else {
+        codex_utils_pty::pipe::spawn_process_no_stdin(
+            program,
+            args,
+            request.cwd,
+            request.env,
+            request.arg0,
+            request.inherited_fds.as_slice(),
+        )
+        .await
+    };
+    spawned.map(finish_spawn)
+}
