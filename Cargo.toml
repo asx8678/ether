@@ -30,6 +30,7 @@ members = [
     "crates/git-utils",
     "crates/apply-patch",
     "crates/codex-client",
+    "crates/model-provider-info",
 ]
 resolver = "2"
 
@@ -69,6 +70,7 @@ codex-context-fragments = { path = "crates/context-fragments" }
 codex-git-utils = { path = "crates/git-utils" }
 codex-apply-patch = { path = "crates/apply-patch" }
 codex-client = { path = "crates/codex-client" }
+codex-model-provider-info = { path = "crates/model-provider-info" }
 
 # External crates, with the same specs as Codex's workspace.
 ansi-to-tui = "8.0.1"
