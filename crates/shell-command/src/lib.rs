@@ -1,3 +1,4 @@
+// Modified from OpenAI Codex (codex-rs/shell-command/src/lib.rs @ 806d973): PowerShell, cmd and Windows command handling removed.
 //! Command parsing and safety utilities shared across Codex crates.
 
 pub mod shell_detect;
@@ -9,6 +10,5 @@ pub use startup::shell_startup_script;
 pub mod bash;
 pub(crate) mod command_safety;
 pub mod parse_command;
-pub mod powershell;
 
 pub use command_safety::is_dangerous_command;

@@ -1,3 +1,4 @@
+// Modified from OpenAI Codex (codex-rs/shell-command/src/shell_snapshot_exports.rs @ 806d973): PowerShell, cmd and Windows command handling removed.
 //! Capture native export declarations and unset POSIX exports.
 //! Set POSIX values are captured in bulk for quoting in Rust.
 
@@ -70,7 +71,6 @@ done
 fi
 "#
         }
-        ShellType::PowerShell | ShellType::Cmd => return String::new(),
     };
     script
         .replace(

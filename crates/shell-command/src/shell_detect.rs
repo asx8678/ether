@@ -1,4 +1,4 @@
-// Modified from OpenAI Codex (codex-rs/shell-command/src/shell_detect.rs @ 806d973): removed unit tests; removed Windows-only code.
+// Modified from OpenAI Codex (codex-rs/shell-command/src/shell_detect.rs @ 806d973): removed unit tests; removed Windows-only code; PowerShell, cmd and Windows command handling removed.
 use std::path::PathBuf;
 
 use serde::Deserialize;
@@ -8,9 +8,7 @@ use serde::Serialize;
 pub enum ShellType {
     Zsh,
     Bash,
-    PowerShell,
     Sh,
-    Cmd,
 }
 
 impl ShellType {
@@ -18,9 +16,7 @@ impl ShellType {
         match self {
             Self::Zsh => "zsh",
             Self::Bash => "bash",
-            Self::PowerShell => "powershell",
             Self::Sh => "sh",
-            Self::Cmd => "cmd",
         }
     }
 }
@@ -42,10 +38,7 @@ pub fn detect_shell_type(shell_path: impl AsRef<std::path::Path>) -> Option<Shel
     match shell_path.as_os_str().to_str() {
         Some("zsh") => Some(ShellType::Zsh),
         Some("sh") => Some(ShellType::Sh),
-        Some("cmd") => Some(ShellType::Cmd),
         Some("bash") => Some(ShellType::Bash),
-        Some("pwsh") => Some(ShellType::PowerShell),
-        Some("powershell") => Some(ShellType::PowerShell),
         _ => {
             let shell_name = shell_path.file_stem();
             if let Some(shell_name) = shell_name {
@@ -133,74 +126,12 @@ fn get_user_path(field: fn(&libc::passwd) -> *mut libc::c_char) -> Option<PathBu
     }
 }
 
-#[cfg(not(unix))]
-fn get_user_shell_path() -> Option<PathBuf> {
-    None
-}
-
 fn file_exists(path: &std::path::Path) -> Option<PathBuf> {
     if std::fs::metadata(path).is_ok_and(|metadata| metadata.is_file()) {
         Some(PathBuf::from(path))
     } else {
         None
     }
-}
-
-// Store PowerShell cannot run under MXC and can be inaccessible to the elevated sandbox account;
-// WindowsApps also contains valid Codex frameworks.
-fn is_inaccessible_windows_apps_powershell_path(path: &std::path::Path) -> bool {
-    path.as_os_str()
-        .to_string_lossy()
-        .split(['\\', '/'])
-        .skip_while(|component| !component.eq_ignore_ascii_case("WindowsApps"))
-        .nth(1)
-        .is_some_and(|component| {
-            component.eq_ignore_ascii_case("pwsh.exe")
-                || component.eq_ignore_ascii_case("powershell.exe")
-                || component
-                    .to_ascii_lowercase()
-                    .starts_with("microsoft.powershell")
-        })
-}
-
-fn targets_inaccessible_windows_apps_powershell(path: &std::path::Path) -> bool {
-    is_inaccessible_windows_apps_powershell_path(path)
-        || std::fs::canonicalize(path)
-            .ok()
-            .is_some_and(|resolved| is_inaccessible_windows_apps_powershell_path(&resolved))
-}
-
-fn is_windows_sandbox_compatible_powershell_path(path: &std::path::Path) -> bool {
-    if !path
-        .extension()
-        .is_some_and(|extension| extension.eq_ignore_ascii_case("exe"))
-    {
-        return false;
-    }
-
-    !targets_inaccessible_windows_apps_powershell(path)
-}
-
-fn get_windows_sandbox_compatible_powershell_path(
-    binary_name: &str,
-    fallback_paths: &[&str],
-) -> Option<PathBuf> {
-    if let Ok(mut paths) = which::which_all(binary_name)
-        && let Some(path) = paths.find(|path| is_windows_sandbox_compatible_powershell_path(path))
-    {
-        return Some(path);
-    }
-
-    for path in fallback_paths {
-        let path = std::path::Path::new(path);
-        if is_windows_sandbox_compatible_powershell_path(path)
-            && let Some(path) = file_exists(path)
-        {
-            return Some(path);
-        }
-    }
-
-    None
 }
 
 fn get_shell_path(
@@ -262,76 +193,10 @@ fn get_sh_shell() -> Option<DetectedShell> {
     })
 }
 
-// Note the `pwsh` and `powershell` fallback paths are where the respective
-// shells are commonly installed on GitHub Actions Windows runners, but may not
-// be present on all Windows machines:
-// https://docs.github.com/en/actions/tutorials/build-and-test-code/powershell
-
-#[cfg(not(windows))]
-const PWSH_FALLBACK_PATHS: &[&str] = &["/usr/local/bin/pwsh"];
-
-#[cfg(not(windows))]
-const POWERSHELL_FALLBACK_PATHS: &[&str] = &[];
-
-fn get_powershell_shell() -> Option<DetectedShell> {
-    let shell_path =
-        get_shell_path(ShellType::PowerShell, "pwsh", PWSH_FALLBACK_PATHS).or_else(|| {
-            get_shell_path(
-                ShellType::PowerShell,
-                "powershell",
-                POWERSHELL_FALLBACK_PATHS,
-            )
-        });
-
-    shell_path.map(|shell_path| DetectedShell {
-        shell_type: ShellType::PowerShell,
-        shell_path,
-    })
-}
-
-/// Returns a replacement only when shell_path targets Store PowerShell and
-/// an unpackaged PowerShell executable can be discovered.
-///
-/// The caller decides whether the sandbox backend requires a fallback. Normal shell discovery
-/// intentionally keeps the user's ordered PATH selection unchanged.
-pub fn fallback_powershell_shell_for_windows_sandbox(
-    shell_path: &std::path::Path,
-) -> Option<DetectedShell> {
-    if !cfg!(windows) || !targets_inaccessible_windows_apps_powershell(shell_path) {
-        return None;
-    }
-
-    let shell_path = get_windows_sandbox_compatible_powershell_path("pwsh", PWSH_FALLBACK_PATHS)
-        .or_else(|| {
-            get_windows_sandbox_compatible_powershell_path("powershell", POWERSHELL_FALLBACK_PATHS)
-        })?;
-
-    Some(DetectedShell {
-        shell_type: ShellType::PowerShell,
-        shell_path,
-    })
-}
-
-fn get_cmd_shell() -> Option<DetectedShell> {
-    let shell_path = get_shell_path(ShellType::Cmd, "cmd", &[]);
-
-    shell_path.map(|shell_path| DetectedShell {
-        shell_type: ShellType::Cmd,
-        shell_path,
-    })
-}
-
 pub fn ultimate_fallback_shell() -> DetectedShell {
-    if cfg!(windows) {
-        DetectedShell {
-            shell_type: ShellType::Cmd,
-            shell_path: PathBuf::from("cmd.exe"),
-        }
-    } else {
-        DetectedShell {
-            shell_type: ShellType::Sh,
-            shell_path: PathBuf::from("/bin/sh"),
-        }
+    DetectedShell {
+        shell_type: ShellType::Sh,
+        shell_path: PathBuf::from("/bin/sh"),
     }
 }
 
@@ -346,9 +211,7 @@ pub fn get_shell(shell_type: ShellType) -> Option<DetectedShell> {
     match shell_type {
         ShellType::Zsh => get_zsh_shell(),
         ShellType::Bash => get_bash_shell(),
-        ShellType::PowerShell => get_powershell_shell(),
         ShellType::Sh => get_sh_shell(),
-        ShellType::Cmd => get_cmd_shell(),
     }
 }
 
@@ -357,23 +220,19 @@ pub fn default_user_shell() -> DetectedShell {
 }
 
 pub fn default_user_shell_from_path(user_shell_path: Option<PathBuf>) -> DetectedShell {
-    if cfg!(windows) {
-        get_shell(ShellType::PowerShell).unwrap_or_else(ultimate_fallback_shell)
+    let user_default_shell = user_shell_path
+        .and_then(|shell| detect_shell_type(&shell))
+        .and_then(get_shell);
+
+    let shell_with_fallback = if cfg!(target_os = "macos") {
+        user_default_shell
+            .or_else(|| get_shell(ShellType::Zsh))
+            .or_else(|| get_shell(ShellType::Bash))
     } else {
-        let user_default_shell = user_shell_path
-            .and_then(|shell| detect_shell_type(&shell))
-            .and_then(get_shell);
+        user_default_shell
+            .or_else(|| get_shell(ShellType::Bash))
+            .or_else(|| get_shell(ShellType::Zsh))
+    };
 
-        let shell_with_fallback = if cfg!(target_os = "macos") {
-            user_default_shell
-                .or_else(|| get_shell(ShellType::Zsh))
-                .or_else(|| get_shell(ShellType::Bash))
-        } else {
-            user_default_shell
-                .or_else(|| get_shell(ShellType::Bash))
-                .or_else(|| get_shell(ShellType::Zsh))
-        };
-
-        shell_with_fallback.unwrap_or_else(ultimate_fallback_shell)
-    }
+    shell_with_fallback.unwrap_or_else(ultimate_fallback_shell)
 }

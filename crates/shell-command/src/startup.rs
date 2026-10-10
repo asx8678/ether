@@ -1,3 +1,4 @@
+// Modified from OpenAI Codex (codex-rs/shell-command/src/startup.rs @ 806d973): PowerShell, cmd and Windows command handling removed.
 //! Profile seeding shared by shell snapshot capture and other initialized shells.
 //! Preserve the existing scripts; callers own the shell's launch flags and lifecycle.
 
@@ -25,6 +26,6 @@ fi
 fi
 "#
         }
-        ShellType::Sh | ShellType::PowerShell | ShellType::Cmd => "",
+        ShellType::Sh => "",
     }
 }

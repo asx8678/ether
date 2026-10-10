@@ -1,3 +1,4 @@
+// Modified from OpenAI Codex (codex-rs/shell-command/src/shell_snapshot_capture.rs @ 806d973): PowerShell, cmd and Windows command handling removed.
 //! Capture native shell state and decode complete export records without applying credential policy.
 //! Retain native declaration flags and tied-array boundaries; reject incomplete records.
 
@@ -40,7 +41,6 @@ pub struct SnapshotCaptureOptions {
 /// Returns a script that captures native state, aliases, and the requested export records.
 ///
 /// Startup behavior is independent of how the captured records will be rendered.
-/// PowerShell and Command Prompt snapshots are not supported by the snapshot callers.
 pub fn snapshot_capture_script(
     shell_type: ShellType,
     options: SnapshotCaptureOptions,
@@ -79,7 +79,6 @@ fn capture_script(
         ShellType::Zsh => zsh_snapshot_script(options.startup),
         ShellType::Bash => bash_snapshot_script(options.startup),
         ShellType::Sh => sh_snapshot_script(options.startup),
-        ShellType::PowerShell | ShellType::Cmd => return None,
     };
     let declarations = if options.declarations {
         exports::script(shell_type)

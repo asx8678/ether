@@ -1,4 +1,4 @@
-// Modified from OpenAI Codex (codex-rs/protocol/src/permissions.rs @ 806d973): removed unit tests.
+// Modified from OpenAI Codex (codex-rs/protocol/src/permissions.rs @ 806d973): removed unit tests; PowerShell, cmd and Windows command handling removed.
 use std::borrow::Cow;
 use std::collections::HashSet;
 use std::ffi::OsStr;
@@ -28,15 +28,12 @@ use crate::protocol::WritableRoot;
 mod deny_read_validator;
 mod local_aliases;
 mod target;
-mod windows_glob;
 
 use local_aliases::LocalPolicyContext;
 
 pub use deny_read_validator::DenyReadValidator;
 pub use deny_read_validator::DenyReadViolation;
 pub use local_aliases::LocalFileSystemPolicyMatcher;
-pub use windows_glob::WindowsDenyReadGlobScan;
-pub use windows_glob::windows_deny_read_glob_scan;
 
 const PROTECTED_METADATA_GIT_PATH_NAME: &str = ".git";
 const PROTECTED_METADATA_AGENTS_PATH_NAME: &str = ".agents";

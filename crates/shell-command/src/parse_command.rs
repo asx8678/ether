@@ -1,8 +1,7 @@
-// Modified from OpenAI Codex (codex-rs/shell-command/src/parse_command.rs @ 806d973): removed unit tests.
+// Modified from OpenAI Codex (codex-rs/shell-command/src/parse_command.rs @ 806d973): removed unit tests; PowerShell, cmd and Windows command handling removed.
 use crate::bash::extract_bash_command;
 use crate::bash::try_parse_shell;
 use crate::bash::try_parse_word_only_commands_sequence;
-use crate::powershell::extract_powershell_command;
 use codex_protocol::parse_command::ParsedCommand;
 use shlex::split as shlex_split;
 use shlex::try_join as shlex_try_join;
@@ -13,33 +12,9 @@ pub fn shlex_join(tokens: &[String]) -> String {
         .unwrap_or_else(|_| "<command included NUL byte>".to_string())
 }
 
-/// Tokenizes a PowerShell command while preserving Windows paths and reader aliases.
-pub fn tokenize_powershell_command(command: &str) -> Vec<String> {
-    let normalized = command.replace('\\', "/");
-    let mut tokens = shlex_split(&normalized)
-        .unwrap_or_else(|| normalized.split_whitespace().map(str::to_string).collect());
-    if let Some(executable) = tokens.first_mut()
-        && matches!(
-            executable.to_ascii_lowercase().as_str(),
-            "get-content" | "gc" | "type"
-        )
-    {
-        *executable = "Get-Content".to_owned();
-        // POSIX shlex must not silently rewrite a PowerShell file path.
-        if tokens
-            .iter()
-            .skip(1)
-            .any(|argument| !normalized.contains(argument))
-        {
-            return Vec::new();
-        }
-    }
-    tokens
-}
-
-/// Extracts the shell and script from a command, regardless of platform
+/// Extracts the shell and script from a command.
 pub fn extract_shell_command(command: &[String]) -> Option<(&str, &str)> {
-    extract_bash_command(command).or_else(|| extract_powershell_command(command))
+    extract_bash_command(command)
 }
 
 /// DO NOT REVIEW THIS CODE BY HAND
@@ -87,34 +62,6 @@ fn single_unknown_for_command(command: &[String]) -> ParsedCommand {
 pub fn parse_command_impl(command: &[String]) -> Vec<ParsedCommand> {
     if let Some(commands) = parse_shell_lc_commands(command) {
         return commands;
-    }
-
-    let powershell_command = command
-        .first()
-        .filter(|shell| shell.contains('\\'))
-        .map(|shell| {
-            let mut normalized = command.to_vec();
-            normalized[0] = shell.rsplit(['/', '\\']).next().unwrap_or(shell).to_owned();
-            normalized
-        });
-    if let Some((_, script)) =
-        extract_powershell_command(powershell_command.as_deref().unwrap_or(command))
-    {
-        let tokens = tokenize_powershell_command(script);
-        if tokens
-            .first()
-            .is_some_and(|executable| executable == "Get-Content")
-            && let [ParsedCommand::Read { name, path, .. }] = parse_command_impl(&tokens).as_slice()
-        {
-            return vec![ParsedCommand::Read {
-                cmd: script.to_string(),
-                name: name.clone(),
-                path: path.clone(),
-            }];
-        }
-        return vec![ParsedCommand::Unknown {
-            cmd: script.to_string(),
-        }];
     }
 
     let normalized = normalize_tokens(command);
@@ -652,7 +599,7 @@ fn parse_find_query_and_path(tail: &[String]) -> (Option<String>, Option<String>
 }
 
 fn parse_shell_lc_commands(original: &[String]) -> Option<Vec<ParsedCommand>> {
-    // Only handle bash/zsh here; PowerShell is stripped separately without bash parsing.
+    // Only handle bash/zsh here.
     let (_, script) = extract_bash_command(original)?;
     Some(parse_shell_script(script))
 }
@@ -1128,31 +1075,8 @@ fn summarize_main_tokens(main_cmd: &[String]) -> ParsedCommand {
                 path,
             }
         }
-        Some((head, tail)) if head == "cat" || head.eq_ignore_ascii_case("Get-Content") => {
-            let path = if head == "cat" {
-                single_non_flag_operand(tail, &[])
-            } else {
-                // Intentionally miss complex reads: conservative presentation should not
-                // require implementing PowerShell's full expression and argument grammar.
-                if tail.iter().all(|argument| {
-                    !argument.starts_with('-')
-                        || ["-Raw", "-Path", "-LiteralPath"]
-                            .iter()
-                            .any(|flag| argument.eq_ignore_ascii_case(flag))
-                }) {
-                    single_non_flag_operand(tail, &[])
-                } else {
-                    None
-                }
-                .filter(|path| {
-                    !path.is_empty()
-                        && !path.starts_with('-')
-                        && path.chars().all(|character| {
-                            character.is_alphanumeric()
-                                || matches!(character, ' ' | '/' | '\\' | '.' | '-' | '_' | ':')
-                        })
-                })
-            };
+        Some((head, tail)) if head == "cat" => {
+            let path = single_non_flag_operand(tail, &[]);
             if let Some(path) = path {
                 let name = short_display_path(&path);
                 ParsedCommand::Read {
@@ -1403,18 +1327,7 @@ fn summarize_main_tokens(main_cmd: &[String]) -> ParsedCommand {
 }
 
 fn is_abs_like(path: &str) -> bool {
-    if std::path::Path::new(path).is_absolute() {
-        return true;
-    }
-    let mut chars = path.chars();
-    match (chars.next(), chars.next(), chars.next()) {
-        // Windows drive path like C:\
-        (Some(d), Some(':'), Some('\\')) if d.is_ascii_alphabetic() => return true,
-        // UNC path like \\server\share
-        (Some('\\'), Some('\\'), _) => return true,
-        _ => {}
-    }
-    false
+    std::path::Path::new(path).is_absolute()
 }
 
 fn join_paths(base: &str, rel: &str) -> String {

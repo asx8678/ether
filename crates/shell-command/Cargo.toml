@@ -1,4 +1,4 @@
-# Modified from OpenAI Codex (codex-rs/shell-command/Cargo.toml @ 806d973): removed dev-dependencies.
+# Modified from OpenAI Codex (codex-rs/shell-command/Cargo.toml @ 806d973): removed dev-dependencies; removed tree-sitter-powershell.
 [package]
 name = "codex-shell-command"
 version.workspace = true
@@ -20,7 +20,6 @@ serde_json = { workspace = true }
 shlex = { workspace = true }
 tree-sitter = { workspace = true }
 tree-sitter-bash = { workspace = true }
-tree-sitter-powershell = { workspace = true }
 url = { workspace = true }
 which = { workspace = true }
 
