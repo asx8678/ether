@@ -1,0 +1,20 @@
+# Two recorded Responses API answers for `ether --replay`; each model request takes the next one.
+# Response 1: reasoning summary, then a streamed answer.
+{"type":"response.created","response":{"id":"resp_1"}}
+{"type":"response.output_item.added","output_index":0,"item":{"type":"reasoning","id":"rs_1","summary":[]}}
+{"type":"response.reasoning_summary_part.added","item_id":"rs_1","summary_index":0}
+{"type":"response.reasoning_summary_text.delta","item_id":"rs_1","summary_index":0,"delta":"The user says hello; "}
+{"type":"response.reasoning_summary_text.delta","item_id":"rs_1","summary_index":0,"delta":"greet them back."}
+{"type":"response.output_item.done","output_index":0,"item":{"type":"reasoning","id":"rs_1","summary":[{"type":"summary_text","text":"The user says hello; greet them back."}]}}
+{"type":"response.output_item.added","output_index":1,"item":{"type":"message","id":"msg_1","role":"assistant","content":[]}}
+{"type":"response.output_text.delta","item_id":"msg_1","output_index":1,"content_index":0,"delta":"Hello! "}
+{"type":"response.output_text.delta","item_id":"msg_1","output_index":1,"content_index":0,"delta":"I'm ether, "}
+{"type":"response.output_text.delta","item_id":"msg_1","output_index":1,"content_index":0,"delta":"replaying a recorded answer."}
+{"type":"response.output_item.done","output_index":1,"item":{"type":"message","id":"msg_1","role":"assistant","content":[{"type":"output_text","text":"Hello! I'm ether, replaying a recorded answer."}]}}
+{"type":"response.completed","response":{"id":"resp_1","usage":{"input_tokens":1200,"input_tokens_details":{"cached_tokens":0},"output_tokens":40,"output_tokens_details":{"reasoning_tokens":12},"total_tokens":1240}}}
+# Response 2: a plain answer, with most of the prompt served from cache.
+{"type":"response.created","response":{"id":"resp_2"}}
+{"type":"response.output_item.added","output_index":0,"item":{"type":"message","id":"msg_2","role":"assistant","content":[]}}
+{"type":"response.output_text.delta","item_id":"msg_2","output_index":0,"content_index":0,"delta":"This is the second recorded answer."}
+{"type":"response.output_item.done","output_index":0,"item":{"type":"message","id":"msg_2","role":"assistant","content":[{"type":"output_text","text":"This is the second recorded answer."}]}}
+{"type":"response.completed","response":{"id":"resp_2","usage":{"input_tokens":1260,"input_tokens_details":{"cached_tokens":1152},"output_tokens":9,"output_tokens_details":{"reasoning_tokens":0},"total_tokens":1269}}}

@@ -36,6 +36,8 @@ members = [
     "crates/tools",
     "crates/rollout",
     "crates/llm",
+    "crates/engine",
+    "crates/cli",
 ]
 resolver = "2"
 
@@ -83,6 +85,7 @@ codex-rollout = { path = "crates/rollout" }
 
 
 # New ether crates.
+ether-engine = { path = "crates/engine" }
 ether-llm = { path = "crates/llm" }
 # External crates, with the same specs as Codex's workspace.
 ansi-to-tui = "8.0.1"
@@ -150,7 +153,9 @@ thiserror = "2.0.17"
 time = "0.3.47"
 tokio = "1"
 tokio-util = "0.7.18"
+toml = "0.9.5"
 tracing = "0.1.44"
+tracing-subscriber = "0.3.22"
 tree-sitter = "0.25.10"
 tree-sitter-bash = "0.25"
 ts-rs = "11"

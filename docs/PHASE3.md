@@ -13,7 +13,7 @@ Decisions for this phase are in `DECISIONS.md`. Check: `cargo build --workspace`
 ## Setup
 
 - [x] Write this to-do list and the phase decisions.
-- [ ] Create `ether-llm`, `ether-engine` and `ether-cli` and add them to the workspace.
+- [x] Create `ether-llm`, `ether-engine` and `ether-cli` and add them to the workspace.
 
 ## Protocol trim (deferred from Phase 2)
 
@@ -34,15 +34,15 @@ The trim is limited to these types. Others (`Collab*`, `Review`, MCP and memory 
 
 ## Engine skeleton (first runnable milestone)
 
-- [ ] Slim config: `~/.ether/config.toml`, an optional project `.ether/config.toml`, and CLI overrides (model, provider, approval policy, sandbox mode).
-- [ ] Engine handle: submit `Op`, receive `EventMsg`; per-session state passed in, not global.
-- [ ] History manager and normalization (`context_manager/{history,normalize}.rs`).
-- [ ] Turn loop (from `session/turn.rs` `run_turn` and `try_run_sampling_request`): sample, stream text and reasoning, record items, follow up after tool calls, stop.
-- [ ] Item mapping from model output to turn items (`event_mapping.rs`, `stream_events_utils.rs`), producing `ItemStarted`/`ItemCompleted` for the Phase 5 TUI.
-- [ ] Interrupt and abort (`tasks/mod.rs`): no tool call is left without a result.
-- [ ] Steering: queue user input mid-turn (`session/input_queue.rs`, `session/turn_input.rs`).
-- [ ] Base system prompt (`models-manager/prompt.md`).
-- [ ] `ether` plain-text CLI: type a prompt, see the streamed answer and tool activity, answer approvals.
+- [x] Slim config: `~/.ether/config.toml`, an optional project `.ether/config.toml`, and CLI overrides (model, provider, approval policy, sandbox mode).
+- [x] Engine handle: submit `Op`, receive `EventMsg`; per-session state passed in, not global.
+- [x] History manager and normalization (`context_manager/{history,normalize}.rs`).
+- [x] Turn loop (from `session/turn.rs` `run_turn` and `try_run_sampling_request`): sample, stream text and reasoning, record items, follow up after tool calls, stop.
+- [x] Item mapping from model output to turn items (`event_mapping.rs`, `stream_events_utils.rs`), producing `ItemStarted`/`ItemCompleted` for the Phase 5 TUI.
+- [x] Interrupt and abort (`tasks/mod.rs`): no tool call is left without a result.
+- [x] Steering: queue user input mid-turn (`session/input_queue.rs`, `session/turn_input.rs`).
+- [x] Base system prompt (`models-manager/prompt.md`).
+- [x] `ether` plain-text CLI: type a prompt, see the streamed answer; tool activity and approvals come with the tool pipeline.
 
 ## Tool pipeline
 
@@ -58,7 +58,7 @@ The trim is limited to these types. Others (`Collab*`, `Review`, MCP and memory 
 
 - [ ] World-state sections: environment, permissions and AGENTS.md (`context/world_state/`, `agents_md.rs`).
 - [ ] Context-window tracking and local-only compaction (`session/context_window.rs`, `compact.rs`).
-- [ ] Retries (`responses_retry.rs`).
+- [x] Retries (`responses_retry.rs`).
 
 ## Rollout
 

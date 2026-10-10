@@ -32,3 +32,8 @@ One line per decision, with the reason. Newest last.
 - The Phase 3 runnable is a plain-text `ether` command (prompt in, streamed answer and tool activity out); the Phase 5 TUI replaces it.
 - `ether --replay FILE` feeds recorded Responses SSE through the real parser in place of a network model. It is a runtime feature for running the binary before Phase 4 connects GLM, not a test.
 - No Windows code is ported (your instruction, Phase 3): new crates have none, and Windows-only modules left in copied crates (PowerShell/cmd, Windows sandbox level, Windows command rules) are removed.
+- The engine keeps its own `ModelProfile` (slug, context window, truncation, reasoning and parallel-call support) instead of Codex's `ModelInfo`: no engine event needs `ModelInfo`, and its ~45 fields describe OpenAI's catalog. Defaults follow Codex's fallback for unknown models (272k window, 95% usable, 10 KB truncation). Phase 4's GLM catalog entry goes here.
+- The Responses client sends the standard `instructions` field for the base prompt, as plain OpenAI-compatible endpoints expect; Codex instead prepends it as a message.
+- ether authenticates with API keys only: the built-in `openai` provider reads `OPENAI_API_KEY` (Codex's expects a ChatGPT login).
+- HTTP error statuses become `ApiError::Api` with the server's message and are not retried at the stream level; the HTTP layer already retries 5xx.
+- `ether-llm`, `ether-engine` and `ether-cli` are not in `scripts/check-linux.sh`: reqwest's TLS stack (`ring`, `openssl-sys`) compiles C for the target, so they wait for a Linux machine like the zstd and tree-sitter crates.

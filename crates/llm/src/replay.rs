@@ -106,9 +106,9 @@ impl ModelClient for ReplayModelClient {
         Box::pin(async move {
             self.log_request(prompt);
             let Some(body) = self.next_response() else {
-                return Err(ApiError::Stream(
-                    "replay file has no more recorded responses".to_string(),
-                ));
+                return Err(ApiError::InvalidRequest {
+                    message: "replay file has no more recorded responses".to_string(),
+                });
             };
             let bytes = futures::stream::once(async move { Ok(body) });
             let response = StreamResponse {

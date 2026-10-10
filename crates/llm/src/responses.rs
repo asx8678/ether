@@ -53,11 +53,34 @@ impl ResponsesClient {
             || request.clone(),
             |req, _attempt| self.transport.stream(req),
         )
-        .await?;
+        .await
+        .map_err(map_transport_error)?;
 
         Ok(spawn_response_stream(
             stream_response,
             self.provider.stream_idle_timeout,
         ))
+    }
+}
+
+/// Turns an HTTP error status into [`ApiError::Api`] with the server's error message.
+fn map_transport_error(error: TransportError) -> ApiError {
+    match error {
+        TransportError::Http { status, body, .. } => {
+            let message = body
+                .as_deref()
+                .and_then(|body| serde_json::from_str::<serde_json::Value>(body).ok())
+                .and_then(|value| {
+                    value
+                        .get("error")
+                        .and_then(|error| error.get("message"))
+                        .and_then(serde_json::Value::as_str)
+                        .map(str::to_string)
+                })
+                .or(body)
+                .unwrap_or_default();
+            ApiError::Api { status, message }
+        }
+        error => ApiError::Transport(error),
     }
 }
