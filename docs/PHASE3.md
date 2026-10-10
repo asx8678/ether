@@ -68,6 +68,6 @@ The trim is limited to these types. Others (`Collab*`, `Review`, MCP and memory 
 
 ## Check
 
-- [ ] `cargo build --workspace` with zero warnings.
-- [ ] `scripts/check-linux.sh`, extended to the new crates where they build for Linux.
-- [ ] Run `ether --replay` through a turn with a shell command and a patch.
+- [x] `cargo build --workspace` with zero warnings (and `cargo clippy --workspace`).
+- [x] `scripts/check-linux.sh` passes for the sandbox crates; the new crates wait for a Linux machine (their TLS stack compiles C for the target, see DECISIONS).
+- [x] Run `ether --replay crates/cli/replay/gate.jsonl` through a turn with a patch and a shell command, with approvals answered on a terminal (`--approval untrusted`) and declined, and an interrupt of a running command.

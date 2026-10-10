@@ -6,13 +6,14 @@
 use anyhow::Context;
 use clap::Parser;
 use clap::ValueEnum;
-use codex_protocol::approvals::ExecApprovalRequestEvent;
 use codex_protocol::config_types::SandboxMode;
 use codex_protocol::items::AgentMessageContent;
 use codex_protocol::items::TurnItem;
 use codex_protocol::protocol::AskForApproval;
 use codex_protocol::protocol::EventMsg;
+use codex_protocol::protocol::FileChange;
 use codex_protocol::protocol::Op;
+use codex_protocol::protocol::PatchApplyStatus;
 use codex_protocol::protocol::ReviewDecision;
 use codex_protocol::protocol::ThreadSettingsOverrides;
 use codex_protocol::protocol::TokenCountEvent;
@@ -27,6 +28,7 @@ use ether_llm::ModelClient;
 use ether_llm::ReplayModelClient;
 use ether_llm::ResponsesModelClient;
 use std::collections::BTreeMap;
+use std::collections::HashMap;
 use std::io::IsTerminal;
 use std::io::Write;
 use std::path::PathBuf;
@@ -149,12 +151,14 @@ async fn main() -> anyhow::Result<()> {
         printer.print(&event.msg);
     }
 
+    // One reader for all of stdin: prompts and approval answers come from the same lines.
+    let mut input = tokio::io::BufReader::new(tokio::io::stdin()).lines();
     match cli.prompt {
         Some(prompt) => {
             submit_prompt(&engine, prompt)?;
-            run_until_turn_ends(&mut engine, &mut printer).await;
+            run_until_turn_ends(&mut engine, &mut printer, &mut input).await;
         }
-        None => interactive(&mut engine, &mut printer).await?,
+        None => interactive(&mut engine, &mut printer, &mut input).await?,
     }
     // Wait for `ShutdownComplete` so the session's rollout is written out before exiting.
     if engine.submit(Op::Shutdown).is_ok() {
@@ -167,11 +171,16 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn interactive(engine: &mut Engine, printer: &mut Printer) -> anyhow::Result<()> {
-    let mut lines = tokio::io::BufReader::new(tokio::io::stdin()).lines();
+type Input = tokio::io::Lines<tokio::io::BufReader<tokio::io::Stdin>>;
+
+async fn interactive(
+    engine: &mut Engine,
+    printer: &mut Printer,
+    input: &mut Input,
+) -> anyhow::Result<()> {
     loop {
         printer.prompt();
-        let Some(line) = lines.next_line().await? else {
+        let Some(line) = input.next_line().await? else {
             return Ok(());
         };
         let line = line.trim();
@@ -179,7 +188,7 @@ async fn interactive(engine: &mut Engine, printer: &mut Printer) -> anyhow::Resu
             continue;
         }
         submit_prompt(engine, line.to_string())?;
-        run_until_turn_ends(engine, printer).await;
+        run_until_turn_ends(engine, printer, input).await;
     }
 }
 
@@ -207,7 +216,7 @@ fn submit_prompt(engine: &Engine, prompt: String) -> anyhow::Result<()> {
 }
 
 /// Prints events until the current turn completes or is aborted. Ctrl-C interrupts it.
-async fn run_until_turn_ends(engine: &mut Engine, printer: &mut Printer) {
+async fn run_until_turn_ends(engine: &mut Engine, printer: &mut Printer, input: &mut Input) {
     let mut interrupted = false;
     loop {
         let event = tokio::select! {
@@ -221,33 +230,46 @@ async fn run_until_turn_ends(engine: &mut Engine, printer: &mut Printer) {
         let Some(event) = event else {
             return;
         };
-        if let EventMsg::ExecApprovalRequest(request) = &event.msg {
-            printer.end_stream();
-            let decision = ask_exec_approval(printer, request).await;
-            let _ = engine.submit(Op::ExecApproval {
-                id: request.effective_approval_id(),
-                turn_id: Some(request.turn_id.clone()),
-                decision,
-            });
-            continue;
-        }
-        if printer.print(&event.msg) {
-            return;
+        match &event.msg {
+            EventMsg::ExecApprovalRequest(request) => {
+                printer.end_stream();
+                let question = format!("approve? $ {}", shlex_join(&request.command));
+                let decision =
+                    ask_approval(printer, input, &question, request.reason.as_deref()).await;
+                let _ = engine.submit(Op::ExecApproval {
+                    id: request.effective_approval_id(),
+                    turn_id: Some(request.turn_id.clone()),
+                    decision,
+                });
+            }
+            EventMsg::ApplyPatchApprovalRequest(request) => {
+                printer.end_stream();
+                let question = format!("approve patch? {}", describe_changes(&request.changes));
+                let decision =
+                    ask_approval(printer, input, &question, request.reason.as_deref()).await;
+                let _ = engine.submit(Op::PatchApproval {
+                    id: request.call_id.clone(),
+                    decision,
+                });
+            }
+            msg => {
+                if printer.print(msg) {
+                    return;
+                }
+            }
         }
     }
 }
 
-/// Asks on the terminal whether to run a command. Without a terminal the command is declined.
-async fn ask_exec_approval(
+/// Asks on the terminal. Without a terminal, or at end of input, the request is declined.
+async fn ask_approval(
     printer: &Printer,
-    request: &ExecApprovalRequestEvent,
+    input: &mut Input,
+    question: &str,
+    reason: Option<&str>,
 ) -> ReviewDecision {
-    let command = shlex_join(&request.command);
-    eprintln!(
-        "{}",
-        printer.paint(&format!("approve? $ {command}"), "1;33")
-    );
-    if let Some(reason) = &request.reason {
+    eprintln!("{}", printer.paint(question, "1;33"));
+    if let Some(reason) = reason {
         eprintln!("{}", printer.paint(&format!("  {reason}"), "2"));
     }
     if !std::io::stdin().is_terminal() {
@@ -262,19 +284,31 @@ async fn ask_exec_approval(
         printer.paint("  [y] yes  [a] yes for this session  [n] no > ", "1")
     );
     let _ = std::io::stderr().flush();
-    let answer = tokio::task::spawn_blocking(|| {
-        let mut line = String::new();
-        std::io::stdin().read_line(&mut line).map(|_| line)
-    })
-    .await;
-    match answer {
-        Ok(Ok(line)) => match line.trim() {
+    match input.next_line().await {
+        Ok(Some(line)) => match line.trim() {
             "y" | "yes" => ReviewDecision::Approved,
             "a" => ReviewDecision::ApprovedForSession,
             _ => ReviewDecision::Abort,
         },
         _ => ReviewDecision::Abort,
     }
+}
+
+/// One-line summary of a patch: `A new.rs, M lib.rs, D old.rs`.
+fn describe_changes(changes: &HashMap<PathBuf, FileChange>) -> String {
+    let mut parts: Vec<String> = changes
+        .iter()
+        .map(|(path, change)| {
+            let kind = match change {
+                FileChange::Add { .. } => "A",
+                FileChange::Delete { .. } => "D",
+                FileChange::Update { .. } => "M",
+            };
+            format!("{kind} {}", path.display())
+        })
+        .collect();
+    parts.sort();
+    parts.join(", ")
 }
 
 /// Renders events as plain text. Assistant text goes to stdout; everything else to stderr.
@@ -375,6 +409,30 @@ impl Printer {
                 );
                 let color = if end.exit_code == 0 { "2" } else { "31" };
                 eprintln!("{}", self.paint(&status, color));
+            }
+            EventMsg::PatchApplyBegin(begin) => {
+                self.end_stream();
+                eprintln!(
+                    "{}",
+                    self.paint(
+                        &format!("patch: {}", describe_changes(&begin.changes)),
+                        "36"
+                    )
+                );
+            }
+            EventMsg::PatchApplyEnd(end) if !end.success => {
+                self.end_stream();
+                let message = if end.status == PatchApplyStatus::Declined {
+                    "patch declined".to_string()
+                } else {
+                    let detail = if end.stderr.is_empty() {
+                        &end.stdout
+                    } else {
+                        &end.stderr
+                    };
+                    format!("patch failed: {}", detail.trim())
+                };
+                eprintln!("{}", self.paint(&message, "31"));
             }
             EventMsg::TokenCount(token_count) => {
                 self.token_count = Some(token_count.clone());

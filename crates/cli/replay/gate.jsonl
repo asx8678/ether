@@ -1,0 +1,16 @@
+# Phase 3 gate: the model adds a file with apply_patch, reads it back with exec_command, then answers.
+# Try (in a scratch directory): ETHER_HOME=$(mktemp -d) ether --replay <this file> "write and read a note"
+# Response 1: apply_patch adds notes.txt.
+{"type":"response.created","response":{"id":"resp_1"}}
+{"type":"response.output_item.done","output_index":0,"item":{"type":"function_call","id":"fc_1","call_id":"call_patch","name":"apply_patch","arguments":"{\"input\":\"*** Begin Patch\\n*** Add File: notes.txt\\n+written by ether\\n*** End Patch\\n\"}"}}
+{"type":"response.completed","response":{"id":"resp_1","usage":{"input_tokens":1500,"input_tokens_details":{"cached_tokens":0},"output_tokens":30,"output_tokens_details":{"reasoning_tokens":0},"total_tokens":1530}}}
+# Response 2: exec_command reads it back.
+{"type":"response.created","response":{"id":"resp_2"}}
+{"type":"response.output_item.done","output_index":0,"item":{"type":"function_call","id":"fc_2","call_id":"call_exec","name":"exec_command","arguments":"{\"cmd\":\"cat notes.txt\"}"}}
+{"type":"response.completed","response":{"id":"resp_2","usage":{"input_tokens":1580,"input_tokens_details":{"cached_tokens":1500},"output_tokens":20,"output_tokens_details":{"reasoning_tokens":0},"total_tokens":1600}}}
+# Response 3: the final answer.
+{"type":"response.created","response":{"id":"resp_3"}}
+{"type":"response.output_item.added","output_index":0,"item":{"type":"message","id":"msg_3","role":"assistant","content":[]}}
+{"type":"response.output_text.delta","item_id":"msg_3","output_index":0,"content_index":0,"delta":"I wrote notes.txt and read it back."}
+{"type":"response.output_item.done","output_index":0,"item":{"type":"message","id":"msg_3","role":"assistant","content":[{"type":"output_text","text":"I wrote notes.txt and read it back."}]}}
+{"type":"response.completed","response":{"id":"resp_3","usage":{"input_tokens":1650,"input_tokens_details":{"cached_tokens":1580},"output_tokens":10,"output_tokens_details":{"reasoning_tokens":0},"total_tokens":1660}}}

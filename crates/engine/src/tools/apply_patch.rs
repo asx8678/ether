@@ -216,17 +216,6 @@ async fn execute_verified_patch(
         }
     };
     let changes = convert_apply_patch_to_protocol(&action);
-    sess.send_event(
-        turn_id,
-        EventMsg::PatchApplyBegin(PatchApplyBeginEvent {
-            call_id: call_id.to_string(),
-            turn_id: turn_id.to_string(),
-            auto_approved,
-            changes: changes.clone(),
-        }),
-    )
-    .await;
-
     if !auto_approved && !request_patch_approval(sess, turn_id, call_id, &changes).await {
         emit_patch_end(
             sess,
@@ -242,6 +231,18 @@ async fn execute_verified_patch(
             "patch rejected by user".to_string(),
         ));
     }
+
+    // Begin follows the approval decision, as in Codex.
+    sess.send_event(
+        turn_id,
+        EventMsg::PatchApplyBegin(PatchApplyBeginEvent {
+            call_id: call_id.to_string(),
+            turn_id: turn_id.to_string(),
+            auto_approved,
+            changes: changes.clone(),
+        }),
+    )
+    .await;
 
     let mut stdout = Vec::new();
     let mut stderr = Vec::new();
