@@ -58,6 +58,14 @@ name = "codex-utils-process"
 version = "0.0.0"
 
 [[package]]
+name = "codex-utils-redacted-string"
+version = "0.0.0"
+dependencies = [
+ "schemars",
+ "serde",
+]
+
+[[package]]
 name = "codex-utils-stream-parser"
 version = "0.0.0"
 

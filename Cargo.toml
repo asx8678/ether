@@ -7,6 +7,7 @@ members = [
     "crates/utils/fuzzy-match",
     "crates/utils/cache",
     "crates/utils/process",
+    "crates/utils/redacted-string",
 ]
 resolver = "2"
 
@@ -23,6 +24,7 @@ codex-utils-stream-parser = { path = "crates/utils/stream-parser" }
 codex-utils-fuzzy-match = { path = "crates/utils/fuzzy-match" }
 codex-utils-cache = { path = "crates/utils/cache" }
 codex-utils-process = { path = "crates/utils/process" }
+codex-utils-redacted-string = { path = "crates/utils/redacted-string" }
 
 # External crates, with the same specs as Codex's workspace.
 dirs = "6"
