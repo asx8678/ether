@@ -5,6 +5,7 @@ members = [
     "crates/utils/string",
     "crates/utils/stream-parser",
     "crates/utils/fuzzy-match",
+    "crates/utils/cache",
 ]
 resolver = "2"
 
@@ -19,14 +20,18 @@ codex-utils-absolute-path = { path = "crates/utils/absolute-path" }
 codex-utils-string = { path = "crates/utils/string" }
 codex-utils-stream-parser = { path = "crates/utils/stream-parser" }
 codex-utils-fuzzy-match = { path = "crates/utils/fuzzy-match" }
+codex-utils-cache = { path = "crates/utils/cache" }
 
 # External crates, with the same specs as Codex's workspace.
 dirs = "6"
 dunce = "1.0.4"
+lru = "0.18.2"
 regex-lite = "0.1.8"
 schemars = "0.8.22"
 serde = { version = "1", features = ["rc"] }
 serde_json = "1"
+sha1 = "0.10.6"
+tokio = "1"
 ts-rs = "11"
 
 [workspace.lints]
