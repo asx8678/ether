@@ -5,7 +5,10 @@
 //! that say they are parallel-safe run concurrently; the others run one at a time, after any
 //! parallel calls already in flight (a read/write lock, as in Codex's `parallel.rs`).
 
+mod apply_patch;
 mod plan;
+mod request_user_input;
+mod view_image;
 
 use crate::config::EngineConfig;
 use crate::session::Session;
@@ -62,8 +65,15 @@ pub(crate) trait ToolHandler: Send + Sync {
 }
 
 /// The built-in tools, in the order they are advertised. Each tool module adds its handler here.
-pub(crate) fn built_in_handlers(_config: &EngineConfig) -> Vec<Arc<dyn ToolHandler>> {
-    vec![Arc::new(plan::PlanHandler)]
+pub(crate) fn built_in_handlers(config: &EngineConfig) -> Vec<Arc<dyn ToolHandler>> {
+    vec![
+        Arc::new(plan::PlanHandler),
+        Arc::new(apply_patch::ApplyPatchHandler::new(
+            apply_patch::ApplyPatchToolType::for_model(&config.model.slug),
+        )),
+        Arc::new(view_image::ViewImageHandler),
+        Arc::new(request_user_input::RequestUserInputHandler),
+    ]
 }
 
 pub(crate) struct ToolRouter {

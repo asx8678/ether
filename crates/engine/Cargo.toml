@@ -17,14 +17,20 @@ codex-history = { workspace = true }
 codex-model-provider-info = { workspace = true }
 codex-protocol = { workspace = true }
 codex-rollout = { workspace = true }
+codex-apply-patch = { workspace = true }
+codex-file-system = { workspace = true }
 codex-tools = { workspace = true }
 codex-utils-absolute-path = { workspace = true }
+codex-utils-image = { workspace = true }
 codex-utils-output-truncation = { workspace = true }
+codex-utils-path-uri = { workspace = true }
 dirs = { workspace = true }
 futures = { workspace = true }
 ether-llm = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+sha1 = { workspace = true }
+similar = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt", "sync", "time"] }
 tokio-util = { workspace = true }

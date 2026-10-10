@@ -8,6 +8,7 @@ use crate::history::History;
 use crate::rollout::Rollout;
 use crate::tools::ToolRouter;
 use crate::tools::built_in_handlers;
+use crate::turn_diff_tracker::TurnDiffs;
 use codex_history::ResponseItemEnvelope;
 use codex_protocol::ThreadId;
 use codex_protocol::models::ResponseItem;
@@ -31,6 +32,8 @@ pub(crate) struct Session {
     pub(crate) config: EngineConfig,
     pub(crate) model: Arc<dyn ModelClient>,
     pub(crate) tools: ToolRouter,
+    /// Files changed by patches in the running turn.
+    pub(crate) turn_diffs: Mutex<TurnDiffs>,
     tx_event: mpsc::Sender<Event>,
     /// Where the session is recorded; `None` when the rollout could not be opened.
     rollout: Option<Rollout>,
@@ -81,6 +84,7 @@ impl Session {
             config,
             model,
             tools,
+            turn_diffs: Mutex::new(TurnDiffs::default()),
             tx_event,
             rollout: init.rollout,
             state: Mutex::new(SessionState {

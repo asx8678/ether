@@ -21,6 +21,7 @@ use codex_protocol::protocol::StreamErrorEvent;
 use codex_protocol::protocol::TurnAbortReason;
 use codex_protocol::protocol::TurnAbortedEvent;
 use codex_protocol::protocol::TurnCompleteEvent;
+use codex_protocol::protocol::TurnDiffEvent;
 use codex_protocol::protocol::TurnStartedEvent;
 use ether_llm::ApiError;
 use ether_llm::Prompt;
@@ -345,6 +346,13 @@ async fn run_sampling_request(
             Ok(output) => sess.record_items(std::slice::from_ref(&output)).await,
             Err(join_error) => tracing::error!("tool task failed: {join_error}"),
         }
+    }
+
+    // Report the turn's diff after a request whose tools changed files.
+    let turn_diff = sess.turn_diffs.lock().await.take_changed(turn_id);
+    if let Some(unified_diff) = turn_diff {
+        sess.send_event(turn_id, EventMsg::TurnDiff(TurnDiffEvent { unified_diff }))
+            .await;
     }
 
     if let Some(usage) = state
