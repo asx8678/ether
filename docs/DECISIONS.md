@@ -31,3 +31,4 @@ One line per decision, with the reason. Newest last.
 - Config lives in `~/.ether/config.toml`, with an optional project `.ether/config.toml` and CLI overrides on top; `codex-config` is not copied.
 - The Phase 3 runnable is a plain-text `ether` command (prompt in, streamed answer and tool activity out); the Phase 5 TUI replaces it.
 - `ether --replay FILE` feeds recorded Responses SSE through the real parser in place of a network model. It is a runtime feature for running the binary before Phase 4 connects GLM, not a test.
+- No Windows code is ported (your instruction, Phase 3): new crates have none, and Windows-only modules left in copied crates (PowerShell/cmd, Windows sandbox level, Windows command rules) are removed.

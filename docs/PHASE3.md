@@ -12,16 +12,16 @@ Decisions for this phase are in `DECISIONS.md`. Check: `cargo build --workspace`
 
 ## Setup
 
-- [ ] Write this to-do list and the phase decisions.
+- [x] Write this to-do list and the phase decisions.
 - [ ] Create `ether-llm`, `ether-engine` and `ether-cli` and add them to the workspace.
 
 ## Protocol trim (deferred from Phase 2)
 
-- [ ] Remove the realtime types and their `Op`/`EventMsg` variants (`realtime.rs`).
-- [ ] Remove the guardian types and variants (`guardian_transcript.rs`, `openai_models/guardian*.rs`, `history/guardian_history.rs`).
-- [ ] Remove the cyber-access types (`openai_models/access_programs.rs`).
-- [ ] Remove `SandboxType::Windows*`.
-- [ ] Fix the knock-on references in history and rollout.
+- [x] Remove the realtime types and their `Op`/`EventMsg` variants (`realtime.rs`).
+- [x] Remove the guardian types and variants (`guardian_transcript.rs`, `openai_models/guardian*.rs`, `history/guardian_history.rs`).
+- [x] Remove the cyber-access types (`openai_models/access_programs.rs`).
+- [x] Remove `SandboxType::Windows*`, the Windows sandbox level plumbing, PowerShell/cmd support and Windows command rules (no Windows code is ported; your instruction).
+- [x] Fix the knock-on references in history and rollout.
 
 The trim is limited to these types. Others (`Collab*`, `Review`, MCP and memory variants) stay unless you approve cutting them.
 
