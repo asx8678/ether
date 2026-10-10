@@ -9,6 +9,7 @@ members = [
     "crates/utils/process",
     "crates/utils/redacted-string",
     "crates/async-utils",
+    "crates/ansi-escape",
 ]
 resolver = "2"
 
@@ -27,12 +28,19 @@ codex-utils-cache = { path = "crates/utils/cache" }
 codex-utils-process = { path = "crates/utils/process" }
 codex-utils-redacted-string = { path = "crates/utils/redacted-string" }
 codex-async-utils = { path = "crates/async-utils" }
+codex-ansi-escape = { path = "crates/ansi-escape" }
 
 # External crates, with the same specs as Codex's workspace.
+ansi-to-tui = "8.0.1"
 dirs = "6"
 dunce = "1.0.4"
 lru = "0.18.2"
 rand = "0.9"
+ratatui = { version = "0.30.2", default-features = false, features = [
+    "crossterm",
+    "layout-cache",
+    "underline-color",
+] }
 regex-lite = "0.1.8"
 schemars = "0.8.22"
 serde = { version = "1", features = ["rc"] }
@@ -40,6 +48,7 @@ serde_json = "1"
 sha1 = "0.10.6"
 tokio = "1"
 tokio-util = "0.7.18"
+tracing = "0.1.44"
 ts-rs = "11"
 
 [workspace.lints]
@@ -98,3 +107,6 @@ strip = false
 
 # Balance parallel release code generation against binary size.
 codegen-units = 4
+
+[patch.crates-io]
+crossterm = { git = "https://github.com/openai-oss-forks/crossterm", rev = "ed1cdab335221515706178d68495bba2aed1924f" }

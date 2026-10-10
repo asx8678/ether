@@ -16,3 +16,4 @@ These apply to every crate and are only listed per crate when something besides 
 | `codex-utils-cache` | dev-dependencies: `tokio` | deleted from the manifest |
 | `codex-utils-process` | dev-dependencies: `pretty_assertions`, `tokio` | deleted from the manifest |
 | `codex-async-utils` | dev-dependencies: `pretty_assertions` | deleted from the manifest |
+| `codex-ansi-escape` | dev-dependencies: `pretty_assertions`, `tracing-subscriber` | deleted from the manifest |

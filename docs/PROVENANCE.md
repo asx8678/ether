@@ -22,3 +22,4 @@ Applied to every copied crate (see `DECISIONS.md`):
 | `crates/utils/process` (`codex-utils-process`) | `codex-rs/utils/process` | unit tests stripped from 1 file(s), 1 test file(s) deleted; Windows-only code stripped from 1 file(s); manifest: removed `[dev-dependencies]` |
 | `crates/utils/redacted-string` (`codex-utils-redacted-string`) | `codex-rs/utils/redacted-string` | none |
 | `crates/async-utils` (`codex-async-utils`) | `codex-rs/async-utils` | unit tests stripped from 1 file(s), 0 test file(s) deleted; manifest: removed `[dev-dependencies]` |
+| `crates/ansi-escape` (`codex-ansi-escape`) | `codex-rs/ansi-escape` | unit tests stripped from 1 file(s), 1 test file(s) deleted; manifest: removed `[dev-dependencies]` |
