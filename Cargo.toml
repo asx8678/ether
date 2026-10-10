@@ -29,6 +29,7 @@ members = [
     "crates/context-fragments",
     "crates/git-utils",
     "crates/apply-patch",
+    "crates/codex-client",
 ]
 resolver = "2"
 
@@ -67,6 +68,7 @@ codex-history = { path = "crates/history" }
 codex-context-fragments = { path = "crates/context-fragments" }
 codex-git-utils = { path = "crates/git-utils" }
 codex-apply-patch = { path = "crates/apply-patch" }
+codex-client = { path = "crates/codex-client" }
 
 # External crates, with the same specs as Codex's workspace.
 ansi-to-tui = "8.0.1"
@@ -81,6 +83,7 @@ derive_more = "2"
 dirs = "6"
 dunce = "1.0.4"
 encoding_rs = "0.8.35"
+eventsource-stream = "0.2.3"
 futures = { version = "0.3", default-features = false }
 gix = { version = "0.81.0", default-features = false, features = ["sha1"] }
 gix-url = "0.35.2"
@@ -109,6 +112,7 @@ ratatui = { version = "0.30.2", default-features = false, features = [
 ] }
 regex = "1.12.3"
 regex-lite = "0.1.8"
+reqwest = { version = "0.12", features = ["cookies"] }
 rustix = { version = "1.1.4", features = ["net"] }
 schemars = "0.8.22"
 seccompiler = "0.5.0"
@@ -137,6 +141,7 @@ uuid = "1"
 walkdir = "2.5.0"
 which = "8"
 wildmatch = "2.6.1"
+zstd = "0.13"
 
 [workspace.lints]
 rust = {}
