@@ -29,3 +29,4 @@ Applied to every copied crate (see `DECISIONS.md`):
 | `crates/bwrap` (`codex-bwrap`) | `codex-rs/bwrap` | none |
 | `crates/vendor/bubblewrap` (LGPL-2.0-or-later) | `codex-rs/vendor/bubblewrap` | `tests/` not copied |
 | `crates/utils/pty` (`codex-utils-pty`) | `codex-rs/utils/pty` | unit tests stripped from 11 file(s), 16 test file(s) deleted; Windows-only code stripped from 6 file(s); deleted unreachable `src/win/conpty.rs`, `src/win/job.rs`, `src/win/mod.rs`, `src/win/procthreadattr.rs`, `src/win/psuedocon.rs`, `src/windows_input.rs`; manifest: removed `[dev-dependencies]`, `[target.'cfg(windows)'.dependencies]` |
+| `crates/utils/path-uri` (`codex-utils-path-uri`) | `codex-rs/utils/path-uri` | unit tests stripped from 4 file(s), 4 test file(s) deleted; Windows-only code stripped from 3 file(s); manifest: removed `[dev-dependencies]` |
