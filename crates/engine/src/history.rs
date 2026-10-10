@@ -1,4 +1,4 @@
-// Modified from OpenAI Codex (codex-rs/core/src/context_manager/history.rs @ 806d973): recording, prompt normalization and token accounting only; retained context, guardian review history, rollback and media stripping are removed.
+// Modified from OpenAI Codex (codex-rs/core/src/context_manager/history.rs @ 806d973): recording, rollout replay, prompt normalization and token accounting only; retained context, guardian review history, rollback and media stripping are removed.
 //! The conversation as the model sees it. History is append-only: items are recorded once, tool
 //! output is truncated when it is recorded, and prompts are built from a normalized copy, so each
 //! request's input starts with the previous request's input.
@@ -20,8 +20,14 @@ pub(crate) struct History {
 }
 
 impl History {
-    /// Appends model-visible items, truncating tool output to `policy`.
-    pub(crate) fn record(&mut self, items: &[ResponseItem], policy: TruncationPolicy) {
+    /// Appends model-visible items, truncating tool output to `policy`. Returns the entries
+    /// added, as they were stored, so the rollout records exactly what history holds.
+    pub(crate) fn record(
+        &mut self,
+        items: &[ResponseItem],
+        policy: TruncationPolicy,
+    ) -> Vec<ResponseItemEnvelope> {
+        let mut added = Vec::new();
         for item in items {
             if !is_api_message(item) {
                 continue;
@@ -36,8 +42,27 @@ impl History {
                     estimate_audio_token_count,
                 );
             }
-            self.items.push(ResponseItemEnvelope::new(item));
+            let envelope = ResponseItemEnvelope::new(item);
+            added.push(envelope.clone());
+            self.items.push(envelope);
         }
+        added
+    }
+
+    /// Appends entries read back from a rollout. They were truncated when first recorded.
+    pub(crate) fn replay(&mut self, envelope: &ResponseItemEnvelope) {
+        if is_api_message(&envelope.item) {
+            self.items.push(envelope.clone());
+        }
+    }
+
+    /// Replaces everything with a compaction's replacement history.
+    pub(crate) fn replace(&mut self, items: Vec<ResponseItemEnvelope>) {
+        self.items = items;
+    }
+
+    pub(crate) fn set_token_info(&mut self, token_info: Option<TokenUsageInfo>) {
+        self.token_info = token_info;
     }
 
     /// Returns the normalized history to send as the next request's input.

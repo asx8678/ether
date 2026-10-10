@@ -37,3 +37,9 @@ One line per decision, with the reason. Newest last.
 - ether authenticates with API keys only: the built-in `openai` provider reads `OPENAI_API_KEY` (Codex's expects a ChatGPT login).
 - HTTP error statuses become `ApiError::Api` with the server's message and are not retried at the stream level; the HTTP layer already retries 5xx.
 - `ether-llm`, `ether-engine` and `ether-cli` are not in `scripts/check-linux.sh`: reqwest's TLS stack (`ring`, `openssl-sys`) compiles C for the target, so they wait for a Linux machine like the zstd and tree-sitter crates.
+- Sessions are recorded with `codex-rollout` under `$ETHER_HOME/sessions`, in paginated history mode: ether emits `ItemCompleted` user/agent items, not the legacy `UserMessage`/`AgentMessage` events, and listing needs a user message to find a session.
+- The rollout file is created when the first turn starts (as Codex defers it), so a session with no turns leaves no file; the CLI waits for `ShutdownComplete` so the writer is drained before exit.
+- Rollout write failures are logged with `tracing::warn!` and never end the session; a rollout that cannot be opened leaves the session unrecorded.
+- History items are written to the rollout as stored (after truncation), so resume replays them without truncating again; outputs added for interrupted calls are written too, and a resumed session closes any call still open.
+- Resume keeps the current configuration (model, cwd, policies) and takes only the thread id, history, token info and turn counter from the rollout; rollback and compactions without replacement history are not reconstructed.
+- `--last` picks the newest session recorded in the working directory, as Codex's `resume --last` does.

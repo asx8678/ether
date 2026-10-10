@@ -63,8 +63,8 @@ The trim is limited to these types. Others (`Collab*`, `Review`, MCP and memory 
 
 ## Rollout
 
-- [ ] Record sessions as JSONL through `codex-rollout`.
-- [ ] Resume (`session/rollout_reconstruction.rs`).
+- [x] Record sessions as JSONL through `codex-rollout`.
+- [x] Resume (`session/rollout_reconstruction.rs`).
 
 ## Check
 

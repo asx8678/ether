@@ -1633,6 +1633,7 @@ dependencies = [
  "codex-history",
  "codex-model-provider-info",
  "codex-protocol",
+ "codex-rollout",
  "codex-tools",
  "codex-utils-absolute-path",
  "codex-utils-output-truncation",

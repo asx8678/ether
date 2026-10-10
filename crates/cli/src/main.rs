@@ -1,6 +1,7 @@
 // New in ether: plain-text command line front end for the engine (replaced by the TUI in Phase 5).
 //! `ether [PROMPT]` runs one turn and exits; without a prompt it reads one prompt per line.
-//! Ctrl-C interrupts the running turn; Ctrl-D ends the session.
+//! Ctrl-C interrupts the running turn; Ctrl-D ends the session. `--resume` / `--last` continue a
+//! recorded session.
 
 use anyhow::Context;
 use clap::Parser;
@@ -61,6 +62,14 @@ struct Cli {
     #[arg(long, value_name = "FILE")]
     replay: Option<PathBuf>,
 
+    /// Resume a recorded session, given its id or rollout file.
+    #[arg(long, value_name = "SESSION_ID_OR_PATH", conflicts_with = "last")]
+    resume: Option<String>,
+
+    /// Resume the newest session recorded in the working directory.
+    #[arg(long)]
+    last: bool,
+
     /// With --replay, append each request's prompt as a JSON line to FILE.
     #[arg(long, value_name = "FILE", requires = "replay")]
     replay_log: Option<PathBuf>,
@@ -113,7 +122,25 @@ async fn main() -> anyhow::Result<()> {
         None => Arc::new(ResponsesModelClient::from_provider(&config.model_provider)?),
     };
 
-    let mut engine = Engine::spawn(config, model);
+    let resume_path = match (cli.resume.as_deref(), cli.last) {
+        (Some(id_or_path), _) => Some(
+            ether_engine::find_session(&config, id_or_path)
+                .await?
+                .with_context(|| format!("no recorded session matches {id_or_path}"))?,
+        ),
+        (None, true) => Some(
+            ether_engine::find_latest_session(&config)
+                .await?
+                .context("no recorded session in this directory")?,
+        ),
+        (None, false) => None,
+    };
+    let mut engine = match resume_path {
+        Some(path) => Engine::resume(config, model, &path)
+            .await
+            .with_context(|| format!("cannot resume {}", path.display()))?,
+        None => Engine::spawn(config, model),
+    };
     let mut printer = Printer::new();
     // The first event is `SessionConfigured`; show it before the first prompt.
     if let Some(event) = engine.next_event().await {
@@ -127,7 +154,14 @@ async fn main() -> anyhow::Result<()> {
         }
         None => interactive(&mut engine, &mut printer).await?,
     }
-    let _ = engine.submit(Op::Shutdown);
+    // Wait for `ShutdownComplete` so the session's rollout is written out before exiting.
+    if engine.submit(Op::Shutdown).is_ok() {
+        while let Some(event) = engine.next_event().await {
+            if matches!(event.msg, EventMsg::ShutdownComplete) {
+                break;
+            }
+        }
+    }
     Ok(())
 }
 
@@ -229,10 +263,11 @@ impl Printer {
                     "{}",
                     self.paint(
                         &format!(
-                            "ether · {} via {} · {}",
+                            "ether · {} via {} · {} · session {}",
                             configured.model,
                             configured.model_provider_id,
-                            configured.cwd.display()
+                            configured.cwd.display(),
+                            configured.thread_id
                         ),
                         "2"
                     )

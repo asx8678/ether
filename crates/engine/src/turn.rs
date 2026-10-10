@@ -68,6 +68,7 @@ pub(crate) async fn run_turn(
         }),
     )
     .await;
+    sess.record_turn_context(&turn_id).await;
     record_user_input(&sess, &turn_id, input).await;
 
     let outcome = loop {
