@@ -145,6 +145,18 @@ impl Session {
         let _ = self.tx_event.send(event).await;
     }
 
+    /// Sends an event to the client without recording it (the replayed conversation of a
+    /// resumed session, which the rollout already holds).
+    pub(crate) async fn send_event_unrecorded(&self, id: &str, msg: EventMsg) {
+        let _ = self
+            .tx_event
+            .send(Event {
+                id: id.to_string(),
+                msg,
+            })
+            .await;
+    }
+
     pub(crate) async fn record_items(&self, items: &[ResponseItem]) {
         let policy = self.config.model.truncation_policy;
         let recorded = self.state.lock().await.history.record(items, policy);

@@ -16,6 +16,7 @@ use codex_rollout::RolloutConfig;
 use codex_rollout::RolloutItem;
 use codex_rollout::RolloutRecorder;
 use codex_rollout::RolloutRecorderParams;
+use codex_rollout::SortDirection;
 use codex_rollout::ThreadSortKey;
 use codex_rollout::persisted_rollout_items;
 use std::path::Path;
@@ -160,6 +161,46 @@ pub async fn find_latest_session(config: &EngineConfig) -> std::io::Result<Optio
         Some(config.cwd.as_path()),
     )
     .await
+}
+
+/// A recorded session, for a session picker.
+#[derive(Debug, Clone)]
+pub struct SessionSummary {
+    pub path: PathBuf,
+    /// RFC 3339 time of the last update, if known.
+    pub updated_at: Option<String>,
+    /// The first user message, or another short description.
+    pub preview: Option<String>,
+}
+
+/// The newest sessions recorded in `config.cwd`, newest first.
+pub async fn list_sessions(
+    config: &EngineConfig,
+    limit: usize,
+) -> std::io::Result<Vec<SessionSummary>> {
+    let cwd = [config.cwd.as_path().to_path_buf()];
+    let page = RolloutRecorder::list_threads(
+        &rollout_config(config),
+        limit.max(1),
+        /*cursor*/ None,
+        ThreadSortKey::UpdatedAt,
+        SortDirection::Desc,
+        /*allowed_sources*/ &[],
+        /*model_providers*/ None,
+        Some(&cwd),
+        &config.model_provider_id,
+        /*search_term*/ None,
+    )
+    .await?;
+    Ok(page
+        .items
+        .into_iter()
+        .map(|item| SessionSummary {
+            path: item.path,
+            updated_at: item.updated_at,
+            preview: item.preview.or(item.first_user_message),
+        })
+        .collect())
 }
 
 /// Resolves a session id or a rollout file path to a rollout file.

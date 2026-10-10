@@ -1,4 +1,5 @@
 // New in ether: the TUI app shell, chat state and composer, driving the engine through `Op` in and `EventMsg` out.
+// Slash commands, the `@` file popup, prompt history and the session picker are part of the composer.
 //! Finished history goes into the terminal scrollback above an inline viewport. The viewport
 //! shows what is still live (the streaming answer's tail, running commands), a status line, and
 //! either the composer or an approval prompt.
@@ -17,6 +18,10 @@ use crate::html_image;
 use crate::html_image::ImageCell;
 use crate::html_image::PageStyle;
 use crate::html_image::RenderedImage;
+use crate::launch::Launch;
+use crate::launch::SessionEntry;
+use crate::launch::SessionHost;
+use crate::prompt_history::PromptHistory;
 use crate::view_renderer::ViewRenderer;
 use crate::view_renderer::ViewResult;
 use crate::history_cell::HistoryCell;
@@ -61,8 +66,12 @@ use ratatui::widgets::Wrap;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::collections::VecDeque;
+use std::num::NonZeroUsize;
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
 use std::time::Duration;
 use std::time::Instant;
 use tokio::sync::mpsc;
@@ -74,18 +83,56 @@ const STREAM_RESERVED_COLS: usize = 2;
 const COMPOSER_PREFIX: &str = "› ";
 const COMPOSER_PREFIX_WIDTH: u16 = 2;
 const TICK: Duration = Duration::from_millis(50);
+/// Rows of the `@` file popup and the session picker.
+const POPUP_ROWS: usize = 8;
+const HELP: &str = "/new  start a new session\n/resume  continue a session from this directory\n/compact  summarize the conversation to free context\n/status  model, session and token usage\n/quit  exit\n@path  mention a file (Tab completes) · ↑/↓ earlier prompts";
 
-/// Runs the TUI until the user quits. `initial_prompt` is submitted right away.
-pub async fn run(mut engine: Engine, initial_prompt: Option<String>) -> anyhow::Result<()> {
+/// Runs the TUI until the user quits. The launch prompt is submitted right away.
+pub async fn run(launch: Launch) -> anyhow::Result<()> {
+    let Launch {
+        mut engine,
+        initial_prompt,
+        ether_home,
+        sessions,
+    } = launch;
     let mut tui = Tui::init()?;
-    let mut app = App::new();
+    let mut app = App::new(&ether_home, sessions.clone());
     if let Some(prompt) = initial_prompt.filter(|prompt| !prompt.trim().is_empty()) {
+        app.history.record(&prompt);
         app.submit(&engine, prompt)?;
     }
-    let result = app.run(&mut engine, &mut tui).await;
+    let result = loop {
+        let result = app.run(&mut engine, &mut tui).await;
+        let Some(switch) = app.switch.take() else {
+            break result;
+        };
+        if result.is_err() {
+            break result;
+        }
+        let next = match switch {
+            Switch::New => sessions.new_session().await,
+            Switch::Resume(path) => sessions.resume_session(path).await,
+        };
+        match next {
+            Ok(next) => {
+                shutdown_engine(&mut engine).await;
+                engine = next;
+                app.on_session_switched();
+            }
+            Err(err) => app.push_cell(history_cell::new_error_event(format!(
+                "cannot start the session: {err:#}"
+            ))),
+        }
+    };
+    app.shutdown_renderer();
     let _ = tui.finish();
     drop(tui);
-    // Let the engine write its rollout before the process exits.
+    shutdown_engine(&mut engine).await;
+    result
+}
+
+/// Lets the engine write its rollout and stop.
+async fn shutdown_engine(engine: &mut Engine) {
     if engine.submit(Op::Shutdown).is_ok() {
         while let Some(event) = engine.next_event().await {
             if matches!(event.msg, EventMsg::ShutdownComplete) {
@@ -93,7 +140,34 @@ pub async fn run(mut engine: Engine, initial_prompt: Option<String>) -> anyhow::
             }
         }
     }
-    result
+}
+
+/// What to do when the app loop returns without quitting.
+enum Switch {
+    New,
+    Resume(PathBuf),
+}
+
+/// A list above the status line.
+enum Popup {
+    /// Files matching the `@` mention that starts at byte `start` of the composer.
+    Files {
+        start: usize,
+        query: String,
+        matches: Vec<String>,
+        selected: usize,
+    },
+    /// Sessions to resume; `None` while loading.
+    Sessions {
+        entries: Option<Vec<SessionEntry>>,
+        selected: usize,
+    },
+}
+
+/// Results of background work for the app.
+enum AppEvent {
+    FileMatches { query: String, matches: Vec<String> },
+    Sessions(Result<Vec<SessionEntry>, String>),
 }
 
 /// A question waiting on the user.
@@ -180,13 +254,26 @@ struct App {
     /// Renders ```view blocks; started with the TUI so Chrome is warm for the first view.
     renderer: Option<ViewRenderer>,
     image_rx: Option<mpsc::UnboundedReceiver<ViewResult>>,
+    history: PromptHistory,
+    sessions: Arc<dyn SessionHost>,
+    popup: Option<Popup>,
+    /// An `@` mention the user closed with Esc (start, query); not reopened until it changes.
+    dismissed_mention: Option<(usize, String)>,
+    file_search_cancel: Option<Arc<AtomicBool>>,
+    app_tx: mpsc::UnboundedSender<AppEvent>,
+    app_rx: Option<mpsc::UnboundedReceiver<AppEvent>>,
+    rollout_path: Option<PathBuf>,
+    /// A resumed session's earlier conversation is being drawn.
+    replaying: bool,
+    switch: Option<Switch>,
     width: u16,
     quit: bool,
 }
 
 impl App {
-    fn new() -> Self {
+    fn new(ether_home: &Path, sessions: Arc<dyn SessionHost>) -> Self {
         let (image_tx, image_rx) = mpsc::unbounded_channel();
+        let (app_tx, app_rx) = mpsc::unbounded_channel();
         let images = ImageSupport::detect();
         let renderer = images.as_ref().map(|images| {
             ViewRenderer::start(
@@ -220,6 +307,16 @@ impl App {
             answer_streamed: false,
             renderer,
             image_rx: Some(image_rx),
+            history: PromptHistory::load(ether_home),
+            sessions,
+            popup: None,
+            dismissed_mention: None,
+            file_search_cancel: None,
+            app_tx,
+            app_rx: Some(app_rx),
+            rollout_path: None,
+            replaying: false,
+            switch: None,
             width: 80,
             quit: false,
         }
@@ -229,10 +326,11 @@ impl App {
         let mut events = EventStream::new();
         let mut tick = tokio::time::interval(TICK);
         tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
-        let Some(mut image_rx) = self.image_rx.take() else {
-            anyhow::bail!("the app already ran");
+        let (Some(mut image_rx), Some(mut app_rx)) = (self.image_rx.take(), self.app_rx.take())
+        else {
+            anyhow::bail!("the app is already running");
         };
-        while !self.quit {
+        while !self.quit && self.switch.is_none() {
             self.draw(tui)?;
             tokio::select! {
                 event = events.next() => match event {
@@ -245,17 +343,73 @@ impl App {
                     None => break,
                 },
                 Some(image) = image_rx.recv() => self.on_image(image),
+                Some(event) = app_rx.recv() => self.on_app_event(event),
                 _ = tick.tick(), if self.is_animating() => self.on_tick(),
             }
         }
+        self.image_rx = Some(image_rx);
+        self.app_rx = Some(app_rx);
         // Views still rendering will not arrive: show their source and the text held behind them.
         self.abandon_views();
         self.flush_live_cells();
         self.draw(tui)?;
+        Ok(())
+    }
+
+    fn shutdown_renderer(&mut self) {
         if let Some(renderer) = self.renderer.take() {
             renderer.shutdown();
         }
-        Ok(())
+    }
+
+    /// Resets the per-session state after `/new` or `/resume`.
+    fn on_session_switched(&mut self) {
+        self.token_info = None;
+        self.turn_started = None;
+        self.approval = None;
+        self.popup = None;
+        self.rollout_path = None;
+        self.replaying = false;
+        self.fence = HtmlFenceFilter::default();
+        self.answer_open = false;
+        self.answer_streamed = false;
+        self.history.reset();
+    }
+
+    fn on_app_event(&mut self, event: AppEvent) {
+        match event {
+            AppEvent::FileMatches { query, matches: found } => {
+                if let Some(Popup::Files {
+                    query: shown,
+                    matches,
+                    selected,
+                    ..
+                }) = self.popup.as_mut()
+                    && *shown == query
+                {
+                    *matches = found;
+                    *selected = 0;
+                }
+            }
+            AppEvent::Sessions(Ok(entries)) if entries.is_empty() => {
+                self.popup = None;
+                self.push_cell(history_cell::new_info_event(
+                    "no sessions recorded in this directory yet".to_string(),
+                    None,
+                ));
+            }
+            AppEvent::Sessions(Ok(found)) => {
+                if let Some(Popup::Sessions { entries, .. }) = self.popup.as_mut() {
+                    *entries = Some(found);
+                }
+            }
+            AppEvent::Sessions(Err(err)) => {
+                self.popup = None;
+                self.push_cell(history_cell::new_error_event(format!(
+                    "cannot list sessions: {err}"
+                )));
+            }
+        }
     }
 
     fn is_animating(&self) -> bool {
@@ -275,6 +429,8 @@ impl App {
                 let text = text.replace("\r\n", "\n").replace('\r', "\n");
                 let cursor = self.composer.cursor();
                 self.composer.insert_str_at(cursor, &text);
+                self.history.reset();
+                self.refresh_mention();
             }
             Event::Resize(width, _) => {
                 self.width = width;
@@ -293,7 +449,26 @@ impl App {
             self.on_approval_key(engine, key);
             return Ok(());
         }
+        if self.on_popup_key(key) {
+            return Ok(());
+        }
         let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
+        match key.code {
+            KeyCode::Up if !ctrl && self.can_recall_previous() => {
+                let current = self.composer.text().to_string();
+                if let Some(text) = self.history.previous(&current) {
+                    self.set_composer(&text);
+                }
+                return Ok(());
+            }
+            KeyCode::Down if !ctrl && self.history.browsing() && self.cursor_on_last_line() => {
+                if let Some(text) = self.history.next() {
+                    self.set_composer(&text);
+                }
+                return Ok(());
+            }
+            _ => {}
+        }
         match key.code {
             KeyCode::Char('c') if ctrl => {
                 if self.turn_started.is_some() {
@@ -314,14 +489,224 @@ impl App {
                 let text = self.composer.text().trim().to_string();
                 if !text.is_empty() {
                     self.composer.set_text_clearing_elements("");
-                    self.submit(engine, text)?;
+                    self.history.record(&text);
+                    if text.starts_with('/') && !text.contains('\n') {
+                        self.slash_command(engine, &text)?;
+                    } else {
+                        self.submit(engine, text)?;
+                    }
                 }
             }
             KeyCode::Enter => {
                 let cursor = self.composer.cursor();
                 self.composer.insert_str_at(cursor, "\n");
             }
-            _ => self.composer.input(key),
+            _ => {
+                self.composer.input(key);
+                self.history.reset();
+            }
+        }
+        self.refresh_mention();
+        Ok(())
+    }
+
+    // ---- composer helpers -------------------------------------------------------------------
+
+    fn set_composer(&mut self, text: &str) {
+        self.composer.set_text_clearing_elements(text);
+        self.composer.set_cursor(text.len());
+    }
+
+    /// Up recalls an earlier prompt when the composer is empty or already showing one, and the
+    /// cursor is on its first line (otherwise Up moves the cursor).
+    fn can_recall_previous(&self) -> bool {
+        let text = self.composer.text();
+        (text.is_empty() || self.history.browsing())
+            && !text[..self.composer.cursor().min(text.len())].contains('\n')
+    }
+
+    fn cursor_on_last_line(&self) -> bool {
+        let text = self.composer.text();
+        !text[self.composer.cursor().min(text.len())..].contains('\n')
+    }
+
+    /// Keys for an open popup; returns whether the key was used.
+    fn on_popup_key(&mut self, key: KeyEvent) -> bool {
+        let Some(popup) = self.popup.as_mut() else {
+            return false;
+        };
+        let (len, selected) = match popup {
+            Popup::Files { matches, selected, .. } => (matches.len(), selected),
+            Popup::Sessions { entries, selected } => {
+                (entries.as_ref().map_or(0, Vec::len), selected)
+            }
+        };
+        match key.code {
+            KeyCode::Up if len > 0 => {
+                *selected = (*selected + len - 1) % len;
+                true
+            }
+            KeyCode::Down if len > 0 => {
+                *selected = (*selected + 1) % len;
+                true
+            }
+            KeyCode::Esc => {
+                if let Some(Popup::Files { start, query, .. }) = self.popup.take() {
+                    self.dismissed_mention = Some((start, query));
+                }
+                true
+            }
+            KeyCode::Tab | KeyCode::Enter if len > 0 => {
+                match self.popup.take() {
+                    Some(Popup::Files {
+                        start,
+                        matches,
+                        selected,
+                        ..
+                    }) => self.insert_mention(start, &matches[selected]),
+                    Some(Popup::Sessions {
+                        entries: Some(entries),
+                        selected,
+                    }) => self.switch = Some(Switch::Resume(entries[selected].path.clone())),
+                    _ => {}
+                }
+                true
+            }
+            // The session picker takes every key while it is open.
+            _ => matches!(self.popup, Some(Popup::Sessions { .. })),
+        }
+    }
+
+    /// Replaces the `@query` at `start` with `path` and a space.
+    fn insert_mention(&mut self, start: usize, path: &str) {
+        let text = self.composer.text().to_string();
+        let cursor = self.composer.cursor().min(text.len());
+        let start = start.min(cursor);
+        let new_text = format!("{}{path} {}", &text[..start], &text[cursor..]);
+        self.composer.set_text_clearing_elements(&new_text);
+        self.composer.set_cursor(start + path.len() + 1);
+    }
+
+    /// Opens, updates or closes the `@` file popup for the word before the cursor.
+    fn refresh_mention(&mut self) {
+        if matches!(self.popup, Some(Popup::Sessions { .. })) {
+            return;
+        }
+        let text = self.composer.text();
+        let cursor = self.composer.cursor().min(text.len());
+        let start = text[..cursor]
+            .rfind(char::is_whitespace)
+            .map_or(0, |index| index + text[index..].chars().next().map_or(1, char::len_utf8));
+        let word = &text[start..cursor];
+        let Some(query) = word.strip_prefix('@').filter(|query| !query.is_empty()) else {
+            if matches!(self.popup, Some(Popup::Files { .. })) {
+                self.popup = None;
+            }
+            return;
+        };
+        let query = query.to_string();
+        if self.dismissed_mention.as_ref() == Some(&(start, query.clone())) {
+            return;
+        }
+        if let Some(Popup::Files { query: shown, .. }) = &self.popup
+            && *shown == query
+        {
+            return;
+        }
+        let matches = match self.popup.take() {
+            Some(Popup::Files { matches, .. }) => matches,
+            _ => Vec::new(),
+        };
+        self.popup = Some(Popup::Files {
+            start,
+            query: query.clone(),
+            matches,
+            selected: 0,
+        });
+        self.search_files(query);
+    }
+
+    /// Fuzzy file search under the working directory, in the background (gitignore-aware).
+    fn search_files(&mut self, query: String) {
+        if let Some(previous) = self.file_search_cancel.take() {
+            previous.store(true, Ordering::Relaxed);
+        }
+        let cancel = Arc::new(AtomicBool::new(false));
+        self.file_search_cancel = Some(cancel.clone());
+        let root = self.cwd.clone();
+        let tx = self.app_tx.clone();
+        tokio::task::spawn_blocking(move || {
+            let options = codex_file_search::FileSearchOptions {
+                limit: NonZeroUsize::new(POPUP_ROWS).unwrap_or(NonZeroUsize::MIN),
+                ..codex_file_search::FileSearchOptions::default()
+            };
+            let matches = codex_file_search::run(&query, vec![root], options, Some(cancel))
+                .map(|found| {
+                    found
+                        .matches
+                        .into_iter()
+                        .map(|found| found.path.to_string_lossy().into_owned())
+                        .collect()
+                })
+                .unwrap_or_default();
+            let _ = tx.send(AppEvent::FileMatches { query, matches });
+        });
+    }
+
+    fn slash_command(&mut self, engine: &Engine, line: &str) -> anyhow::Result<()> {
+        let command = line.split_whitespace().next().unwrap_or_default();
+        let busy = self.turn_started.is_some();
+        match command {
+            "/help" => self.push_cell(info_block(HELP)),
+            "/status" => {
+                let tokens = self.token_info.as_ref().map(|info| {
+                    let total = &info.total_token_usage;
+                    format!(
+                        "{} in ({} cached) · {} out",
+                        total.input_tokens, total.cached_input_tokens, total.output_tokens
+                    )
+                });
+                let mut lines = vec![
+                    format!("model     {} via {}", self.model, self.provider),
+                    format!("directory {}", self.cwd.display()),
+                    format!("session   {}", self.session_id),
+                    format!("tokens    {}", tokens.unwrap_or_else(|| "none yet".to_string())),
+                ];
+                if let Some(path) = &self.rollout_path {
+                    lines.push(format!("recorded  {}", path.display()));
+                }
+                self.push_cell(info_block(&lines.join("\n")));
+            }
+            "/compact" if busy => self.push_cell(history_cell::new_warning_event(
+                "a turn is running; /compact after it ends".to_string(),
+            )),
+            "/compact" => {
+                engine.submit(Op::Compact)?;
+                self.push_cell(history_cell::new_info_event(
+                    "compacting the conversation…".to_string(),
+                    None,
+                ));
+            }
+            "/new" | "/resume" if busy => self.push_cell(history_cell::new_warning_event(format!(
+                "a turn is running; interrupt it (Esc) before {command}"
+            ))),
+            "/new" => self.switch = Some(Switch::New),
+            "/resume" => {
+                self.popup = Some(Popup::Sessions {
+                    entries: None,
+                    selected: 0,
+                });
+                let sessions = self.sessions.clone();
+                let tx = self.app_tx.clone();
+                tokio::spawn(async move {
+                    let entries = sessions.list_sessions().await.map_err(|err| format!("{err:#}"));
+                    let _ = tx.send(AppEvent::Sessions(entries));
+                });
+            }
+            "/quit" | "/exit" => self.quit = true,
+            _ => self.push_cell(history_cell::new_error_event(format!(
+                "unknown command {command}; /help lists the commands"
+            ))),
         }
         Ok(())
     }
@@ -397,6 +782,7 @@ impl App {
                 self.model = configured.model.clone();
                 self.provider = configured.model_provider_id.clone();
                 self.session_id = configured.session_id.to_string();
+                self.rollout_path = configured.rollout_path.clone();
                 self.push_cell(history_cell::new_info_event(
                     format!(
                         "ether · {} via {}",
@@ -405,7 +791,28 @@ impl App {
                     Some(configured.cwd.display().to_string()),
                 ));
             }
-            EventMsg::TurnStarted(_) => self.turn_started = Some(Instant::now()),
+            // A resumed session's earlier conversation, replayed by the engine.
+            EventMsg::UserMessage(message) => {
+                self.start_replay();
+                self.push_cell(history_cell::new_user_prompt(
+                    message.message,
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                ));
+            }
+            EventMsg::AgentMessage(message) => {
+                self.start_replay();
+                self.show_complete_answer(&message.message);
+            }
+            EventMsg::ContextCompacted(_) => self.push_cell(history_cell::new_info_event(
+                "context compacted".to_string(),
+                None,
+            )),
+            EventMsg::TurnStarted(_) => {
+                self.replaying = false;
+                self.turn_started = Some(Instant::now());
+            }
             EventMsg::ItemCompleted(completed) => self.on_item_completed(completed.item),
             EventMsg::AgentMessageContentDelta(delta) => {
                 self.answer_streamed = true;
@@ -497,17 +904,11 @@ impl App {
                         AgentMessageContent::Text { text } => text.as_str(),
                     })
                     .collect();
-                if !self.answer_streamed {
+                if self.answer_streamed {
+                    self.end_answer();
+                } else {
                     // Nothing was streamed for this message; render it whole.
-                    self.on_answer_text(&text);
-                }
-                for output in self.fence.finish() {
-                    self.on_fence_output(output);
-                }
-                self.answer_open = false;
-                self.answer_streamed = false;
-                if self.pending.is_empty() {
-                    self.finish_stream();
+                    self.show_complete_answer(&text);
                 }
             }
             TurnItem::Reasoning(reasoning) => {
@@ -698,6 +1099,35 @@ impl App {
                 self.on_text_delta(&source);
                 self.finish_stream();
             }
+        }
+    }
+
+    /// Marks the start of a resumed session's replayed conversation.
+    fn start_replay(&mut self) {
+        if !self.replaying {
+            self.replaying = true;
+            self.push_cell(history_cell::new_info_event(
+                "earlier in this session".to_string(),
+                None,
+            ));
+        }
+    }
+
+    /// Shows a whole answer at once (not streamed, or replayed).
+    fn show_complete_answer(&mut self, text: &str) {
+        self.on_answer_text(text);
+        self.end_answer();
+    }
+
+    /// The current answer is complete: release what the fence filter holds.
+    fn end_answer(&mut self) {
+        for output in self.fence.finish() {
+            self.on_fence_output(output);
+        }
+        self.answer_open = false;
+        self.answer_streamed = false;
+        if self.pending.is_empty() {
+            self.finish_stream();
         }
     }
 
@@ -931,7 +1361,7 @@ impl App {
     }
 
     /// The status line plus either the approval prompt or the key hints.
-    fn bottom_lines(&self, _width: u16) -> Vec<Line<'static>> {
+    fn bottom_lines(&self, width: u16) -> Vec<Line<'static>> {
         let mut lines = Vec::new();
         if let Some(approval) = self.approval.as_ref() {
             lines.push(Line::from(approval.question.clone().bold()));
@@ -948,8 +1378,58 @@ impl App {
             ]));
             return lines;
         }
+        lines.extend(self.popup_lines(width));
         lines.push(self.status_line());
         lines
+    }
+
+    fn popup_lines(&self, width: u16) -> Vec<Line<'static>> {
+        let fit = |text: String| -> String {
+            let max = usize::from(width).saturating_sub(4).max(8);
+            if text.chars().count() > max {
+                let kept: String = text.chars().take(max.saturating_sub(1)).collect();
+                format!("{kept}…")
+            } else {
+                text
+            }
+        };
+        let row = |selected: bool, text: String| -> Line<'static> {
+            if selected {
+                Line::from(vec!["› ".cyan().bold(), fit(text).bold()])
+            } else {
+                Line::from(vec!["  ".into(), fit(text).into()])
+            }
+        };
+        match &self.popup {
+            None => Vec::new(),
+            Some(Popup::Files { matches, selected, query, .. }) => {
+                if matches.is_empty() {
+                    return vec![Line::from(format!("  no files match @{query}").dim())];
+                }
+                let mut lines: Vec<Line<'static>> = matches
+                    .iter()
+                    .enumerate()
+                    .map(|(index, path)| row(index == *selected, path.clone()))
+                    .collect();
+                lines.push(Line::from("  tab inserts · esc closes".dim()));
+                lines
+            }
+            Some(Popup::Sessions { entries: None, .. }) => {
+                vec![Line::from("  looking for sessions…".dim())]
+            }
+            Some(Popup::Sessions {
+                entries: Some(entries),
+                selected,
+            }) => {
+                let first = selected.saturating_sub(POPUP_ROWS - 1);
+                let mut lines = vec![Line::from("Resume a session".bold())];
+                lines.extend(entries.iter().enumerate().skip(first).take(POPUP_ROWS).map(
+                    |(index, entry)| row(index == *selected, format!("{}  {}", entry.updated, entry.preview)),
+                ));
+                lines.push(Line::from("  ↑/↓ choose · enter resumes · esc cancels".dim()));
+                lines
+            }
+        }
     }
 
     fn status_line(&self) -> Line<'static> {
@@ -980,6 +1460,19 @@ impl App {
         }
         Line::from(spans)
     }
+}
+
+/// A note of several lines: `• ` before the first, continuation lines aligned under it.
+fn info_block(text: &str) -> history_cell::PlainHistoryCell {
+    let lines = text
+        .lines()
+        .enumerate()
+        .map(|(index, line)| {
+            let gutter: Span<'static> = if index == 0 { "• ".dim() } else { "  ".into() };
+            Line::from(vec![gutter, line.to_string().into()])
+        })
+        .collect();
+    history_cell::PlainHistoryCell::new(lines)
 }
 
 /// The live tail of a streaming answer, with the `• ` marker on its first line when it starts

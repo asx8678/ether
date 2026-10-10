@@ -13,11 +13,13 @@ doctest = false
 
 [dependencies]
 anyhow = { workspace = true }
+chrono = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
 codex-protocol = { workspace = true }
 ether-engine = { workspace = true }
 ether-llm = { workspace = true }
 ether-tui = { workspace = true }
+futures = { workspace = true }
 shlex = { workspace = true }
 tokio = { workspace = true, features = ["io-std", "io-util", "macros", "rt-multi-thread", "signal"] }
 tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }

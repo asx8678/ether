@@ -3,6 +3,7 @@
 //! session on the current Tokio runtime; dropping the handle or sending [`Op::Shutdown`] ends it.
 
 use crate::config::EngineConfig;
+use crate::event_mapping::parse_turn_item;
 use crate::history::History;
 use crate::reconstruct::reconstruct_rollout;
 use crate::rollout::Rollout;
@@ -15,15 +16,20 @@ use codex_protocol::ThreadId;
 use codex_protocol::error::CodexErr;
 use codex_protocol::models::ResponseInputItem;
 use codex_protocol::models::ResponseItem;
+use codex_protocol::items::AgentMessageContent;
+use codex_protocol::items::TurnItem;
+use codex_protocol::protocol::AgentMessageEvent;
 use codex_protocol::protocol::ErrorEvent;
 use codex_protocol::protocol::Event;
 use codex_protocol::protocol::EventMsg;
 use codex_protocol::protocol::Op;
 use codex_protocol::protocol::SessionConfiguredEvent;
+use codex_protocol::protocol::UserMessageEvent;
 use codex_protocol::turn_input::NotSubmittedReason;
 use codex_protocol::turn_input::TurnInput;
 use codex_protocol::turn_input::TurnInputMode;
 use codex_protocol::turn_input::TurnInputSubmission;
+use codex_rollout::RolloutItem;
 use codex_rollout::RolloutRecorder;
 use ether_llm::ModelClient;
 use std::path::Path;
@@ -73,19 +79,24 @@ impl Engine {
             Start::Resume {
                 path: rollout_path.to_path_buf(),
                 reconstruction: Box::new(reconstruction),
+                replay: conversation_replay(&items),
             },
         ))
     }
 
-    fn start(config: EngineConfig, model: Arc<dyn ModelClient>, start: Start) -> Self {
+    fn start(config: EngineConfig, model: Arc<dyn ModelClient>, mut start: Start) -> Self {
         let (tx_op, rx_op) = mpsc::unbounded_channel();
         let (tx_event, rx_event) = mpsc::channel(EVENT_CHANNEL_CAPACITY);
+        let replay = match &mut start {
+            Start::Resume { replay, .. } => std::mem::take(replay),
+            Start::New => Vec::new(),
+        };
         tokio::spawn(async move {
             let init = session_init(&config, start).await;
             let session = Arc::new(Session::new(config, model, tx_event, init));
             // A resumed session may end in an interrupted turn; answer its open calls.
             session.close_open_calls().await;
-            submission_loop(session, rx_op).await;
+            submission_loop(session, rx_op, replay).await;
         });
         Self { tx_op, rx_event }
     }
@@ -105,7 +116,47 @@ enum Start {
     Resume {
         path: std::path::PathBuf,
         reconstruction: Box<crate::reconstruct::RolloutReconstruction>,
+        /// The earlier conversation, replayed to the client after `SessionConfigured`.
+        replay: Vec<EventMsg>,
     },
+}
+
+/// The user and assistant messages of a recorded session, as the legacy `UserMessage` /
+/// `AgentMessage` events a client can draw. Taken from every recorded item, so a resumed
+/// session shows its whole conversation, also from before a compaction.
+fn conversation_replay(items: &[RolloutItem]) -> Vec<EventMsg> {
+    items
+        .iter()
+        .filter_map(|item| match item {
+            RolloutItem::ResponseItem(item) => parse_turn_item(item),
+            _ => None,
+        })
+        .filter_map(|item| match item {
+            TurnItem::UserMessage(message) => Some(EventMsg::UserMessage(UserMessageEvent {
+                message: message.message(),
+                ..UserMessageEvent::default()
+            })),
+            TurnItem::AgentMessage(message) => {
+                let text: String = message
+                    .content
+                    .iter()
+                    .map(|part| match part {
+                        AgentMessageContent::Text { text } => text.as_str(),
+                    })
+                    .collect();
+                (!text.trim().is_empty()).then(|| {
+                    EventMsg::AgentMessage(AgentMessageEvent {
+                        message: text,
+                        phase: message.phase,
+                        memory_citation: None,
+                        delivery: None,
+                        questions: None,
+                    })
+                })
+            }
+            _ => None,
+        })
+        .collect()
 }
 
 /// Opens the rollout. A rollout that cannot be opened leaves the session unrecorded.
@@ -127,6 +178,7 @@ async fn session_init(config: &EngineConfig, start: Start) -> SessionInit {
         Start::Resume {
             path,
             reconstruction,
+            ..
         } => {
             let rollout = Rollout::resume(config, path, reconstruction.history_mode)
                 .await
@@ -142,12 +194,20 @@ async fn session_init(config: &EngineConfig, start: Start) -> SessionInit {
     }
 }
 
-async fn submission_loop(sess: Arc<Session>, mut rx_op: mpsc::UnboundedReceiver<Op>) {
+async fn submission_loop(
+    sess: Arc<Session>,
+    mut rx_op: mpsc::UnboundedReceiver<Op>,
+    replay: Vec<EventMsg>,
+) {
     sess.send_event(
         SESSION_EVENT_ID,
         EventMsg::SessionConfigured(session_configured(&sess)),
     )
     .await;
+    // A resumed session's conversation, for the client to draw; it is already recorded.
+    for msg in replay {
+        sess.send_event_unrecorded(SESSION_EVENT_ID, msg).await;
+    }
 
     while let Some(op) = rx_op.recv().await {
         match op {

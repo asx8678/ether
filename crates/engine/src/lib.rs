@@ -31,4 +31,6 @@ pub use engine::EngineClosed;
 pub use engine::SESSION_EVENT_ID;
 pub use model_profile::ModelProfile;
 pub use rollout::find_latest_session;
+pub use rollout::SessionSummary;
 pub use rollout::find_session;
+pub use rollout::list_sessions;

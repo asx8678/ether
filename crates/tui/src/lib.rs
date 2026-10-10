@@ -1,9 +1,11 @@
 // New in ether: terminal UI for the engine, built from Codex's TUI rendering modules.
 //! The lifted Codex modules keep their full internal API; ether uses part of it, so they are
-//! compiled with dead code and unused imports allowed. ether's own modules (`app`, `tui`, `ui_spec_cell`, `html_fence`, `html_image`, `devtools`, `view_renderer`) are not.
+//! compiled with dead code and unused imports allowed. ether's own modules (`app`, `tui`, `ui_spec_cell`, `html_fence`, `html_image`, `devtools`, `view_renderer`, `launch`, `prompt_history`) are not.
 
 mod app;
 mod devtools;
+mod launch;
+mod prompt_history;
 mod html_fence;
 mod html_image;
 mod kitty_diacritics;
@@ -12,6 +14,9 @@ mod view_renderer;
 mod ui_spec_cell;
 
 pub use app::run;
+pub use launch::Launch;
+pub use launch::SessionEntry;
+pub use launch::SessionHost;
 pub use html_image::terminal_is_dark;
 pub use html_image::view_instructions;
 pub use html_image::view_width_px;

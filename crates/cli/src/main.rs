@@ -157,6 +157,11 @@ async fn main() -> anyhow::Result<()> {
                 ether_tui::view_width_px(),
             ));
     }
+    let ether_home = config.ether_home.clone();
+    let host = Arc::new(Sessions {
+        config: config.clone(),
+        model: model.clone(),
+    });
     let mut engine = match resume_path {
         Some(path) => Engine::resume(config, model, &path)
             .await
@@ -164,7 +169,13 @@ async fn main() -> anyhow::Result<()> {
         None => Engine::spawn(config, model),
     };
     if use_tui {
-        return ether_tui::run(engine, cli.prompt).await;
+        return ether_tui::run(ether_tui::Launch {
+            engine,
+            initial_prompt: cli.prompt,
+            ether_home,
+            sessions: host,
+        })
+        .await;
     }
 
     let mut printer = Printer::new();
@@ -560,5 +571,62 @@ fn display_command(command: &[String]) -> String {
     match command {
         [_, flag, script] if flag == "-lc" || flag == "-c" => script.clone(),
         _ => shlex_join(command),
+    }
+}
+
+/// Starts, resumes and lists sessions for the TUI's `/new` and `/resume`, with the
+/// configuration and model client the CLI started with.
+struct Sessions {
+    config: ether_engine::EngineConfig,
+    model: Arc<dyn ModelClient>,
+}
+
+impl ether_tui::SessionHost for Sessions {
+    fn new_session(&self) -> futures::future::BoxFuture<'static, anyhow::Result<Engine>> {
+        let engine = Engine::spawn(self.config.clone(), self.model.clone());
+        Box::pin(async move { Ok(engine) })
+    }
+
+    fn resume_session(
+        &self,
+        path: PathBuf,
+    ) -> futures::future::BoxFuture<'static, anyhow::Result<Engine>> {
+        let (config, model) = (self.config.clone(), self.model.clone());
+        Box::pin(async move {
+            Engine::resume(config, model, &path)
+                .await
+                .with_context(|| format!("cannot resume {}", path.display()))
+        })
+    }
+
+    fn list_sessions(
+        &self,
+    ) -> futures::future::BoxFuture<'static, anyhow::Result<Vec<ether_tui::SessionEntry>>> {
+        let config = self.config.clone();
+        Box::pin(async move {
+            let sessions = ether_engine::list_sessions(&config, 30).await?;
+            Ok(sessions
+                .into_iter()
+                .map(|session| ether_tui::SessionEntry {
+                    path: session.path,
+                    updated: session
+                        .updated_at
+                        .as_deref()
+                        .and_then(|time| chrono::DateTime::parse_from_rfc3339(time).ok())
+                        .map(|time| {
+                            time.with_timezone(&chrono::Local)
+                                .format("%Y-%m-%d %H:%M")
+                                .to_string()
+                        })
+                        .unwrap_or_default(),
+                    preview: session
+                        .preview
+                        .unwrap_or_default()
+                        .split_whitespace()
+                        .collect::<Vec<_>>()
+                        .join(" "),
+                })
+                .collect())
+        })
     }
 }

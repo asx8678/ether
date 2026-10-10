@@ -113,3 +113,4 @@ Applied to every copied crate (see `DECISIONS.md`):
 | `crates/cli/replay/kit.jsonl` | – | new: GLM 5.3's view written with the view kit, replayed |
 | `crates/tui/src/view_kit/vendor/mermaid.min.js`, `mermaid.LICENSE` | npm `mermaid@11.17.2` `dist/mermaid.min.js` and `LICENSE` (MIT, Copyright (c) 2014 - 2022 Knut Sveidqvist) | unchanged; tarball sha1 `e3caf3717582c0e44e5d04cff043e025caec7cba` (matches the registry), file sha256 `581ed7d74bd9048d0e3a91363927d72ef22942d7722546b27f7cc29e35390eb8`; compiled into `ether-tui`, so binaries must ship the licence |
 | `crates/cli/replay/mermaid.jsonl` | – | new: replay with Mermaid diagrams, view kit tiles and table, and a broken diagram |
+| `crates/tui/src/prompt_history.rs`, `crates/tui/src/launch.rs` | – | new: prompt history; the TUI's launch options and session host trait |
