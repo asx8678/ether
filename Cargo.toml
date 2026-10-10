@@ -34,6 +34,7 @@ members = [
     "crates/sandboxing",
     "crates/linux-sandbox",
     "crates/tools",
+    "crates/rollout",
 ]
 resolver = "2"
 
@@ -77,6 +78,7 @@ codex-model-provider-info = { path = "crates/model-provider-info" }
 codex-sandboxing = { path = "crates/sandboxing" }
 codex-linux-sandbox = { path = "crates/linux-sandbox" }
 codex-tools = { path = "crates/tools" }
+codex-rollout = { path = "crates/rollout" }
 
 # External crates, with the same specs as Codex's workspace.
 ansi-to-tui = "8.0.1"
@@ -108,6 +110,7 @@ jsonptr = { version = "0.7.1", default-features = false }
 landlock = "0.4.4"
 libc = "0.2.182"
 lru = "0.18.2"
+memchr = "2.7.6"
 mime_guess = "2.0.5"
 multimap = "0.10.0"
 nucleo = { git = "https://github.com/helix-editor/nucleo.git", rev = "4253de9faabb4e5c6d81d946a5e35a90f87347ee" }
@@ -140,6 +143,7 @@ strum_macros = "0.28.0"
 sys-locale = "0.3.2"
 tempfile = "3.23.0"
 thiserror = "2.0.17"
+time = "0.3.47"
 tokio = "1"
 tokio-util = "0.7.18"
 tracing = "0.1.44"

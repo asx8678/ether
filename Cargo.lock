@@ -752,6 +752,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "codex-rollout"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "codex-extension-items",
+ "codex-file-search",
+ "codex-git-utils",
+ "codex-history",
+ "codex-protocol",
+ "codex-utils-absolute-path",
+ "codex-utils-output-truncation",
+ "codex-utils-path",
+ "codex-utils-process",
+ "codex-utils-string",
+ "memchr",
+ "regex",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "time",
+ "tokio",
+ "tracing",
+ "uuid",
+ "zstd",
+]
+
+[[package]]
 name = "codex-sandboxing"
 version = "0.0.0"
 dependencies = [
