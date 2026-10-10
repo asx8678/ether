@@ -1,0 +1,16 @@
+# Modified from OpenAI Codex (codex-rs/utils/home-dir/Cargo.toml @ 806d973): removed dev-dependencies.
+[package]
+name = "codex-utils-home-dir"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+codex-utils-absolute-path = { workspace = true }
+dirs = { workspace = true }
+
+[lib]
+doctest = false

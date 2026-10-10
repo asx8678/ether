@@ -16,6 +16,7 @@ members = [
     "crates/bwrap",
     "crates/utils/pty",
     "crates/utils/path-uri",
+    "crates/utils/home-dir",
 ]
 resolver = "2"
 
@@ -41,6 +42,7 @@ codex-uds = { path = "crates/uds" }
 codex-bwrap = { path = "crates/bwrap" }
 codex-utils-pty = { path = "crates/utils/pty" }
 codex-utils-path-uri = { path = "crates/utils/path-uri" }
+codex-utils-home-dir = { path = "crates/utils/home-dir" }
 
 # External crates, with the same specs as Codex's workspace.
 ansi-to-tui = "8.0.1"

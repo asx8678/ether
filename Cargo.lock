@@ -344,6 +344,14 @@ name = "codex-utils-fuzzy-match"
 version = "0.0.0"
 
 [[package]]
+name = "codex-utils-home-dir"
+version = "0.0.0"
+dependencies = [
+ "codex-utils-absolute-path",
+ "dirs",
+]
+
+[[package]]
 name = "codex-utils-path-uri"
 version = "0.0.0"
 dependencies = [
