@@ -37,6 +37,9 @@ use std::sync::Arc;
 use tokio::io::AsyncBufReadExt;
 use tokio::sync::oneshot;
 
+/// Width of `render_ui` views in plain mode.
+const PLAIN_VIEW_WIDTH: u16 = 80;
+
 #[derive(Debug, Parser)]
 #[command(name = "ether", version, about = "A minimal coding agent")]
 struct Cli {
@@ -444,6 +447,17 @@ impl Printer {
                     format!("patch failed: {}", detail.trim())
                 };
                 eprintln!("{}", self.paint(&message, "31"));
+            }
+            EventMsg::UiRender(view) => {
+                self.end_stream();
+                match ether_tui::render_ui_plain(&view.spec, PLAIN_VIEW_WIDTH) {
+                    Ok(lines) => {
+                        for line in lines {
+                            println!("{line}");
+                        }
+                    }
+                    Err(err) => eprintln!("{}", self.paint(&format!("render_ui: {err}"), "31")),
+                }
             }
             EventMsg::TokenCount(token_count) => {
                 self.token_count = Some(token_count.clone());

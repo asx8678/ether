@@ -64,6 +64,16 @@ pub struct ConfigToml {
     pub instructions: Option<String>,
     #[serde(default)]
     pub model_providers: HashMap<String, ModelProviderInfo>,
+    #[serde(default)]
+    pub ui: UiToml,
+}
+
+/// The `[ui]` table.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct UiToml {
+    /// Offer the `render_ui` tool (generative UI). Default: on.
+    pub render_tool: Option<bool>,
 }
 
 impl ConfigToml {
@@ -83,6 +93,9 @@ impl ConfigToml {
             instructions
         );
         self.model_providers.extend(other.model_providers);
+        if other.ui.render_tool.is_some() {
+            self.ui.render_tool = other.ui.render_tool;
+        }
         self
     }
 }
@@ -110,6 +123,8 @@ pub struct EngineConfig {
     pub approval_policy: AskForApproval,
     pub sandbox_mode: SandboxMode,
     pub base_instructions: String,
+    /// Whether the `render_ui` tool is offered.
+    pub render_ui_tool: bool,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -231,5 +246,6 @@ fn resolve(
         base_instructions: toml
             .instructions
             .unwrap_or_else(|| BASE_INSTRUCTIONS.to_string()),
+        render_ui_tool: toml.ui.render_tool.unwrap_or(true),
     })
 }

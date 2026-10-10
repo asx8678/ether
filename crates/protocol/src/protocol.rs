@@ -1,4 +1,4 @@
-// Modified from OpenAI Codex (codex-rs/protocol/src/protocol.rs @ 806d973): removed unit tests; realtime types removed; guardian types removed; cyber-access and Windows sandbox types removed; Windows sandbox level removed.
+// Modified from OpenAI Codex (codex-rs/protocol/src/protocol.rs @ 806d973): removed unit tests; realtime types removed; guardian types removed; cyber-access and Windows sandbox types removed; Windows sandbox level removed; `UiRender` event added (ether).
 //! Defines the protocol for a Codex session between a client and an agent.
 //!
 //! Uses a SQ (Submission Queue) / EQ (Event Queue) pattern to asynchronously communicate
@@ -1200,6 +1200,9 @@ pub enum EventMsg {
     TurnDiff(TurnDiffEvent),
 
     PlanUpdate(UpdatePlanArgs),
+
+    /// A generative UI view drawn by the `render_ui` tool (new in ether).
+    UiRender(UiRenderEvent),
 
     TurnAborted(TurnAbortedEvent),
 
@@ -3377,6 +3380,15 @@ pub enum PatchApplyStatus {
     Completed,
     Failed,
     Declined,
+}
+
+/// A `render_ui` view. `spec` is a validated `ether_ui_spec::Node` as JSON; a later event with
+/// the same `view_id` replaces the view (new in ether).
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, TS)]
+pub struct UiRenderEvent {
+    pub call_id: String,
+    pub view_id: String,
+    pub spec: Value,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, TS)]

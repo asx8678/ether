@@ -39,6 +39,7 @@ members = [
     "crates/engine",
     "crates/cli",
     "crates/tui",
+    "crates/ui-spec",
 ]
 resolver = "2"
 
@@ -89,6 +90,7 @@ codex-rollout = { path = "crates/rollout" }
 ether-engine = { path = "crates/engine" }
 ether-llm = { path = "crates/llm" }
 ether-tui = { path = "crates/tui" }
+ether-ui-spec = { path = "crates/ui-spec" }
 # External crates, with the same specs as Codex's workspace.
 ansi-to-tui = "8.0.1"
 anyhow = "1"

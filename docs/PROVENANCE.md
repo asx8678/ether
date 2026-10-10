@@ -97,3 +97,8 @@ Applied to every copied crate (see `DECISIONS.md`):
 | `crates/tui` (`ether-tui`, new) | `codex-rs/tui/src` (lifted modules listed in `docs/PHASE5.md`) | lifted files are copied with unit tests and Windows code removed and keep their "Modified from OpenAI Codex" notes where changed; `app.rs` and `tui.rs` are new; local copies: `keymap_config.rs` (`codex-rs/config/src/tui_keymap.rs`), `rendering_config.rs` (`codex-rs/config/src/tui_rendering.rs`), `terminal_detection.rs` (`codex-rs/terminal-detection/src/lib.rs`), `elapsed.rs` (`codex-rs/utils/elapsed/src/lib.rs`); stand-ins: `clipboard_copy.rs`, `inline_visualization.rs`; `history_cell/mod.rs` and `notices.rs` reduced to ether's cells |
 | `crates/tui/assets/themes/*.tmTheme` | `codex-rs/tui/assets/themes` | none |
 | `crates/cli/replay/tui.jsonl` | – | new: replay file for the TUI tour |
+| `crates/ui-spec` (`ether-ui-spec`, new) | – | new: generative UI `Node` types, parsing and limits (Phase 6) |
+| `crates/engine/src/tools/render_ui.rs` | – | new: `render_ui` tool, shaped like `codex-rs/core/src/tools/handlers/plan.rs` |
+| `crates/tui/src/ui_spec_cell.rs` | – | new: `UiSpecCell`, drawing views with ratatui widgets into an off-screen buffer |
+| `crates/protocol/src/protocol.rs`, `crates/rollout/src/policy.rs` | `codex-rs/protocol/src/protocol.rs`, `codex-rs/rollout/src/policy.rs` | `EventMsg::UiRender` / `UiRenderEvent` added; persisted like `PlanUpdate` |
+| `crates/cli/replay/ui.jsonl` | – | new: replay with an invalid `render_ui` spec, the fix, and an answer |

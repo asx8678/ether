@@ -7,6 +7,7 @@
 
 mod apply_patch;
 mod plan;
+mod render_ui;
 mod request_user_input;
 mod shell_spec;
 mod unified_exec;
@@ -68,7 +69,7 @@ pub(crate) trait ToolHandler: Send + Sync {
 
 /// The built-in tools, in the order they are advertised. Each tool module adds its handler here.
 pub(crate) fn built_in_handlers(config: &EngineConfig) -> Vec<Arc<dyn ToolHandler>> {
-    vec![
+    let mut handlers: Vec<Arc<dyn ToolHandler>> = vec![
         Arc::new(unified_exec::ExecCommandHandler),
         Arc::new(unified_exec::WriteStdinHandler),
         Arc::new(plan::PlanHandler),
@@ -77,7 +78,11 @@ pub(crate) fn built_in_handlers(config: &EngineConfig) -> Vec<Arc<dyn ToolHandle
         )),
         Arc::new(view_image::ViewImageHandler),
         Arc::new(request_user_input::RequestUserInputHandler),
-    ]
+    ];
+    if config.render_ui_tool {
+        handlers.push(Arc::new(render_ui::RenderUiHandler::default()));
+    }
+    handlers
 }
 
 pub(crate) struct ToolRouter {

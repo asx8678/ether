@@ -1,4 +1,4 @@
-// Modified from OpenAI Codex (codex-rs/rollout/src/policy.rs @ 806d973): realtime types removed; guardian types removed.
+// Modified from OpenAI Codex (codex-rs/rollout/src/policy.rs @ 806d973): realtime types removed; guardian types removed; `UiRender` added (ether).
 use std::borrow::Cow;
 
 use crate::RolloutItem;
@@ -198,6 +198,7 @@ fn persisted_event_msg(
         | EventMsg::McpStartupComplete(_)
         | EventMsg::WebSearchBegin(_)
         | EventMsg::PlanUpdate(_)
+        | EventMsg::UiRender(_)
         | EventMsg::ShutdownComplete
         | EventMsg::DeprecationNotice(_)
         | EventMsg::ItemStarted(_)

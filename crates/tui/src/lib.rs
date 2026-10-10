@@ -1,11 +1,13 @@
 // New in ether: terminal UI for the engine, built from Codex's TUI rendering modules.
 //! The lifted Codex modules keep their full internal API; ether uses part of it, so they are
-//! compiled with dead code and unused imports allowed. ether's own modules (`app`, `tui`) are not.
+//! compiled with dead code and unused imports allowed. ether's own modules (`app`, `tui`, `ui_spec_cell`) are not.
 
 mod app;
 mod tui;
+mod ui_spec_cell;
 
 pub use app::run;
+pub use ui_spec_cell::render_ui_plain;
 
 #[allow(dead_code, unused_imports, unused_variables)]
 mod assistant_directives;

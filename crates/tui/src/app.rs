@@ -16,6 +16,7 @@ use crate::streaming::controller::StreamController;
 use crate::terminal_hyperlinks::HyperlinkLine;
 use crate::terminal_hyperlinks::visible_lines;
 use crate::tui::Tui;
+use crate::ui_spec_cell::UiSpecCell;
 use codex_protocol::items::AgentMessageContent;
 use codex_protocol::items::TurnItem;
 use codex_protocol::protocol::EventMsg;
@@ -26,6 +27,7 @@ use codex_protocol::protocol::Op;
 use codex_protocol::protocol::ReviewDecision;
 use codex_protocol::protocol::ThreadSettingsOverrides;
 use codex_protocol::protocol::TokenUsageInfo;
+use codex_protocol::protocol::UiRenderEvent;
 use codex_protocol::turn_input::TurnInput;
 use codex_protocol::turn_input::TurnInputMode;
 use codex_protocol::turn_input::TurnInputRequest;
@@ -107,6 +109,8 @@ struct App {
     stream: Option<StreamController>,
     reasoning: BTreeMap<String, String>,
     exec_cells: HashMap<String, ExecCell>,
+    /// `render_ui` views, live until later history is written after them or the turn ends.
+    ui_views: Vec<UiSpecCell>,
     approval: Option<PendingApproval>,
     token_info: Option<TokenUsageInfo>,
     turn_started: Option<Instant>,
@@ -128,6 +132,7 @@ impl App {
             stream: None,
             reasoning: BTreeMap::new(),
             exec_cells: HashMap::new(),
+            ui_views: Vec::new(),
             approval: None,
             token_info: None,
             turn_started: None,
@@ -344,6 +349,7 @@ impl App {
                 self.push_cell(history_cell::new_patch_apply_failure(detail));
             }
             EventMsg::PlanUpdate(update) => self.push_cell(history_cell::new_plan_update(update)),
+            EventMsg::UiRender(event) => self.on_ui_render(event),
             EventMsg::ExecApprovalRequest(request) => {
                 self.approval = Some(PendingApproval {
                     kind: ApprovalKind::Exec,
@@ -425,8 +431,38 @@ impl App {
         }
     }
 
+    fn on_ui_render(&mut self, event: UiRenderEvent) {
+        let node = match ether_ui_spec::parse(&event.spec) {
+            Ok(node) => node,
+            Err(err) => {
+                self.push_cell(history_cell::new_error_event(format!("render_ui: {err}")));
+                return;
+            }
+        };
+        // Text streamed before the view goes above it.
+        self.finish_stream();
+        match self
+            .ui_views
+            .iter_mut()
+            .find(|view| view.view_id() == event.view_id)
+        {
+            Some(view) => view.set_node(node),
+            None => self
+                .ui_views
+                .push(UiSpecCell::new(event.view_id, node, &self.cwd)),
+        }
+    }
+
+    /// Moves the live views into history, ahead of whatever is written next.
+    fn commit_views(&mut self) {
+        for view in self.ui_views.drain(..) {
+            self.pending_history.push(Box::new(view));
+        }
+    }
+
     fn on_text_delta(&mut self, delta: &str) {
         if self.stream.is_none() {
+            self.commit_views();
             self.stream = Some(StreamController::new_with_inline_visualizations(
                 self.stream_width(),
                 &self.cwd,
@@ -487,6 +523,7 @@ impl App {
             CommandOutput::new(end.exit_code, end.aggregated_output),
             end.duration,
         );
+        self.commit_views();
         self.pending_history.push(Box::new(cell));
     }
 
@@ -508,6 +545,7 @@ impl App {
     /// Moves everything still live into history.
     fn flush_live_cells(&mut self) {
         self.finish_stream();
+        self.commit_views();
         let mut cells: Vec<(String, ExecCell)> = self.exec_cells.drain().collect();
         cells.sort_by(|a, b| a.0.cmp(&b.0));
         for (_, cell) in cells {
@@ -528,6 +566,7 @@ impl App {
     fn push_cell(&mut self, cell: impl HistoryCell + 'static) {
         // History is ordered: finish the streamed answer first so the cell lands after it.
         self.finish_stream();
+        self.commit_views();
         self.pending_history.push(Box::new(cell));
     }
 
@@ -600,7 +639,7 @@ impl App {
         Ok(())
     }
 
-    /// Lines still changing: the streaming answer's tail and running commands.
+    /// Lines still changing: the streaming answer's tail, live views and running commands.
     fn live_lines(&self, width: u16) -> Vec<Line<'static>> {
         let mut lines = Vec::new();
         if let Some(stream) = self.stream.as_ref() {
@@ -611,6 +650,12 @@ impl App {
                     stream.tail_starts_stream(),
                 ));
             }
+        }
+        for view in &self.ui_views {
+            if !lines.is_empty() {
+                lines.push(Line::default());
+            }
+            lines.extend(view.display_lines(width));
         }
         let mut cells: Vec<&ExecCell> = self.exec_cells.values().collect();
         cells.sort_by_key(|cell| cell.active_start_time());

@@ -1,0 +1,16 @@
+# Phase 6: render_ui. Response 1 sends an invalid spec (a row with too few cells); response 2 fixes it; response 3 answers.
+# Try: ETHER_HOME=$(mktemp -d) ether --replay <this file> "show the workspace stats"
+# Response 1: an invalid table row.
+{"type": "response.created", "response": {"id": "resp_1"}}
+{"type": "response.output_item.done", "output_index": 0, "item": {"type": "function_call", "id": "fc_resp_1", "call_id": "call_ui_1", "name": "render_ui", "arguments": "{\"view_id\": \"stats\", \"spec\": {\"type\": \"column\", \"children\": [{\"type\": \"table\", \"headers\": [\"Crate\", \"Lines\"], \"rows\": [[\"engine\"]]}]}}"}}
+{"type": "response.completed", "response": {"id": "resp_1", "usage": {"input_tokens": 2000, "input_tokens_details": {"cached_tokens": 1900}, "output_tokens": 60, "output_tokens_details": {"reasoning_tokens": 0}, "total_tokens": 2060}}}
+# Response 2: the fixed view.
+{"type": "response.created", "response": {"id": "resp_2"}}
+{"type": "response.output_item.done", "output_index": 0, "item": {"type": "function_call", "id": "fc_resp_2", "call_id": "call_ui_2", "name": "render_ui", "arguments": "{\"view_id\": \"stats\", \"spec\": {\"type\": \"column\", \"gap\": 1, \"children\": [{\"type\": \"text\", \"text\": \"Workspace overview\", \"bold\": true, \"color\": \"cyan\"}, {\"type\": \"row\", \"gap\": 2, \"children\": [{\"type\": \"table\", \"title\": \"Crates\", \"headers\": [\"Crate\", \"Lines\", \"Status\"], \"rows\": [[\"engine\", 9120, \"ported\"], [\"tui\", \"23k\", \"lifted\"], [\"ui-spec\", 180, \"new\"]]}, {\"type\": \"column\", \"children\": [{\"type\": \"gauge\", \"label\": \"Phase 6\", \"value\": 70, \"color\": \"yellow\"}, {\"type\": \"gauge\", \"label\": \"Context\", \"value\": 0.12, \"max\": 1}, {\"type\": \"gauge\", \"label\": \"Cache hit\", \"value\": 95, \"color\": \"green\"}]}]}, {\"type\": \"markdown\", \"markdown\": \"Views are drawn with **ratatui** widgets into an off-screen buffer.\"}]}}"}}
+{"type": "response.completed", "response": {"id": "resp_2", "usage": {"input_tokens": 2000, "input_tokens_details": {"cached_tokens": 1900}, "output_tokens": 60, "output_tokens_details": {"reasoning_tokens": 0}, "total_tokens": 2060}}}
+# Response 3: the final answer.
+{"type": "response.created", "response": {"id": "resp_3"}}
+{"type": "response.output_item.added", "output_index": 0, "item": {"type": "message", "id": "msg_3", "role": "assistant", "content": []}}
+{"type": "response.output_text.delta", "item_id": "msg_3", "output_index": 0, "content_index": 0, "delta": "The view is above: three crates and three gauges."}
+{"type": "response.output_item.done", "output_index": 0, "item": {"type": "message", "id": "msg_3", "role": "assistant", "content": [{"type": "output_text", "text": "The view is above: three crates and three gauges."}]}}
+{"type": "response.completed", "response": {"id": "resp_3", "usage": {"input_tokens": 2100, "input_tokens_details": {"cached_tokens": 2000}, "output_tokens": 12, "output_tokens_details": {"reasoning_tokens": 0}, "total_tokens": 2112}}}

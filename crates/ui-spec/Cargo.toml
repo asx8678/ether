@@ -1,0 +1,17 @@
+# New in ether: the generative UI spec (`render_ui` views), shared by the engine and the TUI.
+[package]
+edition.workspace = true
+license.workspace = true
+name = "ether-ui-spec"
+version.workspace = true
+
+[lib]
+doctest = false
+test = false
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+
+[lints]
+workspace = true

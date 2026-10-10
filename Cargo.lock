@@ -1670,6 +1670,7 @@ dependencies = [
  "codex-utils-string",
  "dirs",
  "ether-llm",
+ "ether-ui-spec",
  "futures",
  "rand 0.9.3",
  "serde",
@@ -1724,6 +1725,7 @@ dependencies = [
  "diffy",
  "dirs",
  "ether-engine",
+ "ether-ui-spec",
  "futures",
  "itertools",
  "libc",
@@ -1748,6 +1750,14 @@ dependencies = [
  "url",
  "urlencoding",
  "uuid",
+]
+
+[[package]]
+name = "ether-ui-spec"
+version = "0.0.0"
+dependencies = [
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

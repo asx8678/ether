@@ -74,3 +74,9 @@ One line per decision, with the reason. Newest last.
 - `ether` uses the TUI when stdin and stdout are both terminals; `--no-tui`, pipes, files and `--replay` without a terminal use the plain-text mode. The TUI keeps Codex's inline mode: finished history goes into the terminal scrollback above a small viewport (live tail, status line, composer or approval prompt).
 - The lifted TUI modules are compiled with `dead_code`, `unused_imports` and `unused_variables` allowed: they keep Codex's internal API and ether uses part of it. ether's own TUI modules (`app.rs`, `tui.rs`) are not exempt.
 - Reasoning is shown in the main view (Codex keeps it transcript-only), since ether has no transcript view yet.
+- Phase 6's `Node` types live in a new serde-only crate, `ether-ui-spec`, so the engine checks specs without depending on ratatui; the TUI draws them. `EventMsg::UiRender` carries the spec as JSON (the normalized `Node`), so `codex-protocol` does not depend on ether crates.
+- `render_ui` advertises a loose schema (`spec` is an object with a `type` enum and any other fields) and describes the node kinds in the tool description; a recursive JSON schema needs `$ref`, which GLM's handling of is unknown. serde does the checking and its errors, with the failing node's path, go back to the model. A spec sent as a JSON string is accepted.
+- The `render_ui` result is only `ok view_id=...`, so the spec is in history once (in the call's arguments) and the tool output stays small for the prompt cache.
+- A live view moves into history as soon as anything is written after it, rather than at turn end only, so history order matches what happened; a later call with the same `view_id` after that adds a new cell.
+- `render_ui` is offered to every model by default; `[ui] render_tool = false` turns it off.
+- Plain mode renders views with the TUI's renderer at 80 columns, without colours; it marks the terminal colour probe as done so nothing is written to the terminal.
