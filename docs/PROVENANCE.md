@@ -94,3 +94,6 @@ Applied to every copied crate (see `DECISIONS.md`):
 | `crates/cli/replay/exec.jsonl` | – | new: sample replay where the model runs `echo hi` through `exec_command` |
 | `crates/llm/src/chat.rs` | – | new: Chat Completions request mapping and stream parser |
 | `scripts/check-prefix.py` | – | new: prompt-cache prefix check over a request log, after the idea of `codex-rs/core/tests/suite/prompt_caching.rs` |
+| `crates/tui` (`ether-tui`, new) | `codex-rs/tui/src` (lifted modules listed in `docs/PHASE5.md`) | lifted files are copied with unit tests and Windows code removed and keep their "Modified from OpenAI Codex" notes where changed; `app.rs` and `tui.rs` are new; local copies: `keymap_config.rs` (`codex-rs/config/src/tui_keymap.rs`), `rendering_config.rs` (`codex-rs/config/src/tui_rendering.rs`), `terminal_detection.rs` (`codex-rs/terminal-detection/src/lib.rs`), `elapsed.rs` (`codex-rs/utils/elapsed/src/lib.rs`); stand-ins: `clipboard_copy.rs`, `inline_visualization.rs`; `history_cell/mod.rs` and `notices.rs` reduced to ether's cells |
+| `crates/tui/assets/themes/*.tmTheme` | `codex-rs/tui/assets/themes` | none |
+| `crates/cli/replay/tui.jsonl` | – | new: replay file for the TUI tour |

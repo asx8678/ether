@@ -1,0 +1,34 @@
+# TUI tour: a streamed markdown answer; then a command with output; then a long command to interrupt.
+# Try: ether --replay crates/cli/replay/tui.jsonl --approval never   (prompt 1: anything; prompt 2: anything, then Esc)
+{"type": "response.created", "response": {"id": "r1"}}
+{"type": "response.output_item.added", "output_index": 0, "item": {"type": "message", "id": "m1", "role": "assistant", "content": []}}
+{"type": "response.output_text.delta", "item_id": "m1", "output_index": 0, "content_index": 0, "delta": "## Plan"}
+{"type": "response.output_text.delta", "item_id": "m1", "output_index": 0, "content_index": 0, "delta": "\n\nHere "}
+{"type": "response.output_text.delta", "item_id": "m1", "output_index": 0, "content_index": 0, "delta": "is what"}
+{"type": "response.output_text.delta", "item_id": "m1", "output_index": 0, "content_index": 0, "delta": " I will"}
+{"type": "response.output_text.delta", "item_id": "m1", "output_index": 0, "content_index": 0, "delta": " do:\n\n1"}
+{"type": "response.output_text.delta", "item_id": "m1", "output_index": 0, "content_index": 0, "delta": ". Check"}
+{"type": "response.output_text.delta", "item_id": "m1", "output_index": 0, "content_index": 0, "delta": " the **"}
+{"type": "response.output_text.delta", "item_id": "m1", "output_index": 0, "content_index": 0, "delta": "files**"}
+{"type": "response.output_text.delta", "item_id": "m1", "output_index": 0, "content_index": 0, "delta": "\n2. Run"}
+{"type": "response.output_text.delta", "item_id": "m1", "output_index": 0, "content_index": 0, "delta": " a `com"}
+{"type": "response.output_text.delta", "item_id": "m1", "output_index": 0, "content_index": 0, "delta": "mand`\n\n"}
+{"type": "response.output_text.delta", "item_id": "m1", "output_index": 0, "content_index": 0, "delta": "```pyth"}
+{"type": "response.output_text.delta", "item_id": "m1", "output_index": 0, "content_index": 0, "delta": "on\ndef "}
+{"type": "response.output_text.delta", "item_id": "m1", "output_index": 0, "content_index": 0, "delta": "add(a, "}
+{"type": "response.output_text.delta", "item_id": "m1", "output_index": 0, "content_index": 0, "delta": "b):\n   "}
+{"type": "response.output_text.delta", "item_id": "m1", "output_index": 0, "content_index": 0, "delta": " return"}
+{"type": "response.output_text.delta", "item_id": "m1", "output_index": 0, "content_index": 0, "delta": " a + b\n"}
+{"type": "response.output_text.delta", "item_id": "m1", "output_index": 0, "content_index": 0, "delta": "```\n\nDo"}
+{"type": "response.output_text.delta", "item_id": "m1", "output_index": 0, "content_index": 0, "delta": "ne.\n"}
+{"type": "response.output_item.done", "output_index": 0, "item": {"type": "message", "id": "m1", "role": "assistant", "content": [{"type": "output_text", "text": "## Plan\n\nHere is what I will do:\n\n1. Check the **files**\n2. Run a `command`\n\n```python\ndef add(a, b):\n    return a + b\n```\n\nDone.\n"}]}}
+{"type": "response.completed", "response": {"id": "r1", "usage": {"input_tokens": 900, "input_tokens_details": {"cached_tokens": 0}, "output_tokens": 60, "output_tokens_details": {"reasoning_tokens": 0}, "total_tokens": 960}}}
+{"type": "response.created", "response": {"id": "r2"}}
+{"type": "response.output_item.done", "output_index": 0, "item": {"type": "function_call", "id": "fc2", "call_id": "c2", "name": "exec_command", "arguments": "{\"cmd\": \"echo hello from ether; echo second line; exit 3\"}"}}
+{"type": "response.completed", "response": {"id": "r2"}}
+{"type": "response.created", "response": {"id": "r3"}}
+{"type": "response.output_item.done", "output_index": 0, "item": {"type": "message", "id": "m3", "role": "assistant", "content": [{"type": "output_text", "text": "The command exited with code 3."}]}}
+{"type": "response.completed", "response": {"id": "r3", "usage": {"input_tokens": 1000, "input_tokens_details": {"cached_tokens": 896}, "output_tokens": 9, "output_tokens_details": {"reasoning_tokens": 0}, "total_tokens": 1009}}}
+{"type": "response.created", "response": {"id": "r4"}}
+{"type": "response.output_item.done", "output_index": 0, "item": {"type": "function_call", "id": "fc4", "call_id": "c4", "name": "exec_command", "arguments": "{\"cmd\": \"sleep 20\", \"yield_time_ms\": 20000}"}}
+{"type": "response.completed", "response": {"id": "r4"}}

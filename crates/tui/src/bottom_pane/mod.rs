@@ -1,5 +1,4 @@
 // New in ether: the bottom pane (composer and overlays).
-pub(crate) mod paste_burst;
 pub(crate) mod textarea;
 
 use crate::key_hint;

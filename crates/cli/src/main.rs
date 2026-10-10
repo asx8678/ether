@@ -40,8 +40,13 @@ use tokio::sync::oneshot;
 #[derive(Debug, Parser)]
 #[command(name = "ether", version, about = "A minimal coding agent")]
 struct Cli {
-    /// Prompt to run. Without one, ether reads prompts from standard input, one per line.
+    /// Prompt to run. In the TUI it is submitted first; in plain mode ether runs it and exits.
+    /// Without one, plain mode reads prompts from standard input, one per line.
     prompt: Option<String>,
+
+    /// Use plain text even on a terminal.
+    #[arg(long)]
+    no_tui: bool,
 
     /// Model slug.
     #[arg(short, long)]
@@ -145,6 +150,12 @@ async fn main() -> anyhow::Result<()> {
             .with_context(|| format!("cannot resume {}", path.display()))?,
         None => Engine::spawn(config, model),
     };
+    // The full-screen TUI on a terminal; plain text for pipes, files and `--no-tui`.
+    let use_tui = !cli.no_tui && std::io::stdin().is_terminal() && std::io::stdout().is_terminal();
+    if use_tui {
+        return ether_tui::run(engine, cli.prompt).await;
+    }
+
     let mut printer = Printer::new();
     // The first event is `SessionConfigured`; show it before the first prompt.
     if let Some(event) = engine.next_event().await {

@@ -21,6 +21,10 @@ use tracing::warn;
 
 /// Something the driver must do in response to a stream event.
 #[derive(Debug)]
+#[allow(
+    clippy::large_enum_variant,
+    reason = "effects are applied as soon as they are produced, never stored in bulk"
+)]
 pub(crate) enum Effect {
     /// Send this event to the client.
     Emit(EventMsg),

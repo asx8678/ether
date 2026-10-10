@@ -1638,6 +1638,7 @@ dependencies = [
  "codex-protocol",
  "ether-engine",
  "ether-llm",
+ "ether-tui",
  "shlex",
  "tokio",
  "tracing-subscriber",
@@ -1708,6 +1709,7 @@ dependencies = [
 name = "ether-tui"
 version = "0.0.0"
 dependencies = [
+ "anyhow",
  "base64 0.22.1",
  "chrono",
  "codex-ansi-escape",
@@ -1722,6 +1724,7 @@ dependencies = [
  "diffy",
  "dirs",
  "ether-engine",
+ "futures",
  "itertools",
  "libc",
  "pathdiff",

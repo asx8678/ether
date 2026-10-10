@@ -1,42 +1,89 @@
 // New in ether: terminal UI for the engine, built from Codex's TUI rendering modules.
-mod assistant_directives;
-mod bottom_pane;
-mod clipboard_copy;
-mod color;
-mod custom_terminal;
-mod diff_model;
-mod diff_render;
-mod elapsed;
-mod exec_cell;
-mod exec_command;
-mod git_action_directives;
-mod history_cell;
-mod inline_visualization;
-mod insert_history;
-mod key_hint;
-mod keymap;
-mod keymap_config;
-mod line_truncation;
-mod live_wrap;
-mod markdown;
-mod markdown_copy;
-mod markdown_render;
-mod markdown_stream;
-mod markdown_text_merge;
-mod motion;
-mod render;
-mod rendering_config;
-mod streaming;
-mod style;
-mod table_detect;
-mod terminal_hyperlinks;
-mod terminal_detection;
-mod terminal_palette;
-mod terminal_probe;
-mod text_selection;
-mod tool_output;
+//! The lifted Codex modules keep their full internal API; ether uses part of it, so they are
+//! compiled with dead code and unused imports allowed. ether's own modules (`app`, `tui`) are not.
+
+mod app;
 mod tui;
+
+pub use app::run;
+
+#[allow(dead_code, unused_imports, unused_variables)]
+mod assistant_directives;
+#[allow(dead_code, unused_imports, unused_variables)]
+mod bottom_pane;
+#[allow(dead_code, unused_imports, unused_variables)]
+mod clipboard_copy;
+#[allow(dead_code, unused_imports, unused_variables)]
+mod color;
+#[allow(dead_code, unused_imports, unused_variables)]
+mod custom_terminal;
+#[allow(dead_code, unused_imports, unused_variables)]
+mod diff_model;
+#[allow(dead_code, unused_imports, unused_variables)]
+mod diff_render;
+#[allow(dead_code, unused_imports, unused_variables)]
+mod elapsed;
+#[allow(dead_code, unused_imports, unused_variables)]
+mod exec_cell;
+#[allow(dead_code, unused_imports, unused_variables)]
+mod exec_command;
+#[allow(dead_code, unused_imports, unused_variables)]
+mod git_action_directives;
+#[allow(dead_code, unused_imports, unused_variables)]
+mod history_cell;
+#[allow(dead_code, unused_imports, unused_variables)]
+mod inline_visualization;
+#[allow(dead_code, unused_imports, unused_variables)]
+mod insert_history;
+#[allow(dead_code, unused_imports, unused_variables)]
+mod key_hint;
+#[allow(dead_code, unused_imports, unused_variables)]
+mod keymap;
+#[allow(dead_code, unused_imports, unused_variables)]
+mod keymap_config;
+#[allow(dead_code, unused_imports, unused_variables)]
+mod line_truncation;
+#[allow(dead_code, unused_imports, unused_variables)]
+mod live_wrap;
+#[allow(dead_code, unused_imports, unused_variables)]
+mod markdown;
+#[allow(dead_code, unused_imports, unused_variables)]
+mod markdown_copy;
+#[allow(dead_code, unused_imports, unused_variables)]
+mod markdown_render;
+#[allow(dead_code, unused_imports, unused_variables)]
+mod markdown_stream;
+#[allow(dead_code, unused_imports, unused_variables)]
+mod markdown_text_merge;
+#[allow(dead_code, unused_imports, unused_variables)]
+mod motion;
+#[allow(dead_code, unused_imports, unused_variables)]
+mod render;
+#[allow(dead_code, unused_imports, unused_variables)]
+mod rendering_config;
+#[allow(dead_code, unused_imports, unused_variables)]
+mod streaming;
+#[allow(dead_code, unused_imports, unused_variables)]
+mod style;
+#[allow(dead_code, unused_imports, unused_variables)]
+mod table_detect;
+#[allow(dead_code, unused_imports, unused_variables)]
+mod terminal_detection;
+#[allow(dead_code, unused_imports, unused_variables)]
+mod terminal_hyperlinks;
+#[allow(dead_code, unused_imports, unused_variables)]
+mod terminal_palette;
+#[allow(dead_code, unused_imports, unused_variables)]
+mod terminal_probe;
+#[allow(dead_code, unused_imports, unused_variables)]
+mod text_selection;
+#[allow(dead_code, unused_imports, unused_variables)]
+mod tool_output;
+#[allow(dead_code, unused_imports, unused_variables)]
 mod ui_consts;
+#[allow(dead_code, unused_imports, unused_variables)]
 mod vim_search;
+#[allow(dead_code, unused_imports, unused_variables)]
 mod width;
+#[allow(dead_code, unused_imports, unused_variables)]
 mod wrapping;
