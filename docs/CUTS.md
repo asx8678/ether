@@ -24,3 +24,4 @@ These apply to every crate and are only listed per crate when something besides 
 | `codex-utils-path-uri` | dev-dependencies: `pretty_assertions`, `serde_json` | deleted from the manifest |
 | `codex-utils-home-dir` | dev-dependencies: `pretty_assertions`, `tempfile` | deleted from the manifest |
 | `codex-utils-path` | Windows dependencies: `windows-sys`; dev-dependencies: `pretty_assertions`, `tempfile` | deleted from the manifest |
+| `codex-extension-items` | dev-dependencies: `pretty_assertions` | deleted from the manifest |

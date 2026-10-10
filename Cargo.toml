@@ -18,6 +18,7 @@ members = [
     "crates/utils/path-uri",
     "crates/utils/home-dir",
     "crates/utils/path-utils",
+    "crates/extension-items",
 ]
 resolver = "2"
 
@@ -45,6 +46,7 @@ codex-utils-pty = { path = "crates/utils/pty" }
 codex-utils-path-uri = { path = "crates/utils/path-uri" }
 codex-utils-home-dir = { path = "crates/utils/home-dir" }
 codex-utils-path = { path = "crates/utils/path-utils" }
+codex-extension-items = { path = "crates/extension-items" }
 
 # External crates, with the same specs as Codex's workspace.
 ansi-to-tui = "8.0.1"

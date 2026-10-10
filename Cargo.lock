@@ -291,6 +291,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "codex-extension-items"
+version = "0.0.0"
+dependencies = [
+ "codex-utils-absolute-path",
+ "schemars",
+ "serde",
+ "serde_json",
+ "ts-rs",
+]
+
+[[package]]
 name = "codex-file-search"
 version = "0.0.0"
 dependencies = [
