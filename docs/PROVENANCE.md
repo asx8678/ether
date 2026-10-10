@@ -102,3 +102,7 @@ Applied to every copied crate (see `DECISIONS.md`):
 | `crates/tui/src/ui_spec_cell.rs` | – | new: `UiSpecCell`, drawing views with ratatui widgets into an off-screen buffer |
 | `crates/protocol/src/protocol.rs`, `crates/rollout/src/policy.rs` | `codex-rs/protocol/src/protocol.rs`, `codex-rs/rollout/src/policy.rs` | `EventMsg::UiRender` / `UiRenderEvent` added; persisted like `PlanUpdate` |
 | `crates/cli/replay/ui.jsonl` | – | new: replay with an invalid `render_ui` spec, the fix, and an answer |
+| `crates/tui/src/html_image.rs`, `html_fence.rs` | – | new: HTML views (Chrome rendering, kitty placeholders, stream fence filter, view instructions) |
+| `crates/tui/src/kitty_diacritics.rs` | kitty's `rowcolumn-diacritics.txt` (kitty 0.49.2 docs) | the list of code points, as a Rust array |
+| `crates/engine/src/world_state/display.rs` | – | new: `<terminal_display>` section, after the other world-state sections |
+| `crates/cli/replay/html.jsonl`, `demo.jsonl` | – | new: replays with a ```` ```view ```` answer |

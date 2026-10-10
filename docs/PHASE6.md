@@ -18,3 +18,15 @@ Interactive views (focus, input, buttons), views rebuilt on `--resume` (the TUI 
 ## Gate
 
 - [x] GLM draws a table and a gauge on request, and fixes an invalid spec after the error comes back. Checked 2026-10-10 live with GLM 5.3: a planets table plus a `Disk 63%` gauge; then a deliberately invalid table (row with a missing cell), the error `spec.children[0].rows[0]: 2 cells but 3 headers` came back, and the next call fixed it. Five requests passed `scripts/check-prefix.py`, with cached tokens on every request after the first. Also checked in the TUI in a pseudo-terminal: live GLM turn with a row of a table and two gauges, and `ui.jsonl` by replay.
+
+## Follow-up: HTML views
+
+The model can also answer with HTML and CSS: a ```` ```view ```` block is rendered as an image in place of the code on terminals with kitty's Unicode-placeholder images (kitty, Ghostty) when Chrome or Chromium is installed.
+
+- Rendering (`crates/tui/src/html_image.rs`): headless Chrome screenshots the page at the terminal's pixel width (transparent background, the terminal's text colour, font scaled to the cell size), the PNG is cropped to the cell grid and uploaded with kitty's graphics protocol, and the image is shown through `U+10EEEE` placeholder cells, so it is ordinary text in the scrollback.
+- Safety: static only. The page's CSP (`default-src 'none'`) blocks scripts and all loads; Chrome runs with a throwaway profile, unresolvable host names and a dead proxy for all traffic (which also stops `<meta http-equiv="refresh">` navigation to an IP address; checked with a local listener).
+- Streaming (`crates/tui/src/html_fence.rs`): view blocks are held out of the streamed answer, rendered as soon as they close, and text after them waits so the order is kept; a "rendering view…" line shows meanwhile; a failed render shows the source; an interrupt flushes what is held.
+- Teaching: the CLI checks the capability before the engine starts and passes `view_instructions` (about 150 tokens: what renders, when to use a view, an example) as the `<terminal_display>` world-state section, fixed for the session. `render_ui` is then off unless `[ui] render_tool = true`. ```` ```html ```` stays code.
+- Checked live with GLM 5.3 in a pseudo-terminal: views for number comparisons (crate sizes as bars, disk usage as gauges), prose for an explanation, code for "show me the HTML for a login form"; the prefix check passes. Replays: `crates/cli/replay/html.jsonl`, `demo.jsonl`.
+
+Not yet: a text fallback for terminals without images, a persistent Chrome (each view starts one, about a second), interactive views.
