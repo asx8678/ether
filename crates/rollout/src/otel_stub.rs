@@ -1,4 +1,3 @@
-// Modified from OpenAI Codex (codex-rs/rollout/src/otel_stub.rs @ 806d973): guardian types removed.
 // New in ether: stand-in for codex-otel's global metrics client with the same call shape.
 // ether records no OpenTelemetry metrics, so `global()` is always `None` and `MetricsClient`
 // has no values; every metrics call site in this crate becomes inert.

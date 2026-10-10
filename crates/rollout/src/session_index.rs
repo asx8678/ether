@@ -1,4 +1,4 @@
-// Modified from OpenAI Codex (codex-rs/rollout/src/session_index.rs @ 806d973): removed unit tests; no state database parameter; guardian types removed.
+// Modified from OpenAI Codex (codex-rs/rollout/src/session_index.rs @ 806d973): removed unit tests; no state database parameter; formatted.
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fs::File;
