@@ -27,10 +27,10 @@ The trim is limited to these types. Others (`Collab*`, `Review`, MCP and memory 
 
 ## Model client (`ether-llm`)
 
-- [ ] Lift `ResponseEvent` and the request types from `codex-api` (`common.rs`, `error.rs`, `rate_limits.rs`).
-- [ ] Lift the Responses SSE parser (`sse/responses.rs`, `sse/responses_error.rs`) and endpoint (`endpoint/responses.rs`, `requests/`): HTTP only, with no WebSocket, realtime, search, images or memories.
-- [ ] A `ModelClient` trait the engine calls, implemented by the Responses client and by the replay source.
-- [ ] Replay source: feed a file of recorded SSE through the same parser (`ether --replay FILE`), so the binary runs end to end before a real provider is connected in Phase 4.
+- [x] Lift `ResponseEvent` and the request types from `codex-api` (`common.rs`, `error.rs`); `rate_limits.rs` is not copied (ChatGPT-plan headers only).
+- [x] Lift the Responses SSE parser (`sse/responses.rs`, `sse/responses_error.rs`) and endpoint (`endpoint/responses.rs`, `requests/`): HTTP only, with no WebSocket, realtime, search, images or memories.
+- [x] A `ModelClient` trait the engine calls, implemented by the Responses client and by the replay source.
+- [x] Replay source: feed a file of recorded SSE through the same parser (`ether --replay FILE`), so the binary runs end to end before a real provider is connected in Phase 4.
 
 ## Engine skeleton (first runnable milestone)
 

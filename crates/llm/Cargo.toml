@@ -1,0 +1,29 @@
+# New in ether: model clients (Responses API lifted from codex-rs/codex-api @ 806d973).
+[package]
+edition.workspace = true
+license.workspace = true
+name = "ether-llm"
+version.workspace = true
+
+[lib]
+doctest = false
+test = false
+
+[dependencies]
+bytes = { workspace = true }
+codex-client = { workspace = true }
+codex-model-provider-info = { workspace = true }
+codex-protocol = { workspace = true }
+eventsource-stream = { workspace = true }
+futures = { workspace = true }
+http = { workspace = true }
+regex-lite = { workspace = true }
+reqwest = { workspace = true, features = ["json", "rustls-tls", "rustls-tls-native-roots", "stream"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt", "sync", "time"] }
+tracing = { workspace = true }
+
+[lints]
+workspace = true

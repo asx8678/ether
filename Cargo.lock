@@ -1611,6 +1611,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dea2df4cf52843e0452895c455a1a2cfbb842a1e7329671acf418fdc53ed4c59"
 
 [[package]]
+name = "ether-llm"
+version = "0.0.0"
+dependencies = [
+ "bytes",
+ "codex-client",
+ "codex-model-provider-info",
+ "codex-protocol",
+ "eventsource-stream",
+ "futures",
+ "http",
+ "regex-lite",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "euclid"
 version = "0.22.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
