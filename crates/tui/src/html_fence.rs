@@ -1,15 +1,29 @@
-// New in ether: splits ```` ```view ```` blocks out of a streamed answer (HTML views).
+// New in ether: splits ```` ```view ```` and ```` ```mermaid ```` blocks out of a streamed answer.
 //! The answer arrives in arbitrary chunks. [`HtmlFenceFilter::push`] passes text through as
-//! soon as it cannot start a view fence, holds the fenced HTML until its closing fence, and
-//! then returns it as one [`FenceOutput::Block`], so the view can be rendered in place of the
-//! code. Only the `view` tag is a view: ```` ```html ```` stays code, since a coding agent is
-//! often asked to show HTML source.
+//! soon as it cannot start a drawable fence, holds the fenced body until its closing fence, and
+//! then returns it as one [`FenceOutput::Block`], so it can be drawn in place of the code.
+//! ```` ```view ```` holds HTML; ```` ```mermaid ```` a Mermaid diagram. ```` ```html ```` stays
+//! code, since a coding agent is often asked to show HTML source.
+
+/// What a drawable block holds.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum BlockKind {
+    /// HTML using the view kit.
+    View,
+    /// A Mermaid diagram.
+    Mermaid,
+}
 
 #[derive(Debug, PartialEq)]
 pub(crate) enum FenceOutput {
     Text(String),
-    /// A complete block: the HTML inside, and the fenced source to show if rendering fails.
-    Block { html: String, source: String },
+    /// A complete block: its kind, the body inside the fences, and the fenced source to show if
+    /// drawing fails.
+    Block {
+        kind: BlockKind,
+        body: String,
+        source: String,
+    },
 }
 
 #[derive(Debug, Default)]
@@ -21,7 +35,8 @@ pub(crate) struct HtmlFenceFilter {
 
 #[derive(Debug)]
 struct OpenBlock {
-    html: String,
+    kind: BlockKind,
+    body: String,
     source: String,
 }
 
@@ -49,7 +64,8 @@ impl HtmlFenceFilter {
             Some(mut block) if is_closer(&line) => {
                 block.source.push_str(&line);
                 out.push(FenceOutput::Block {
-                    html: block.html,
+                    kind: block.kind,
+                    body: block.body,
                     source: block.source,
                 });
             }
@@ -61,24 +77,28 @@ impl HtmlFenceFilter {
 
     fn on_line(&mut self, line: String, out: &mut Vec<FenceOutput>) {
         match self.block.as_mut() {
-            None if is_opener(&line) => {
-                self.block = Some(OpenBlock {
-                    html: String::new(),
-                    source: line,
-                });
-            }
-            None => push_text(out, line),
+            None => match opener_kind(&line) {
+                Some(kind) => {
+                    self.block = Some(OpenBlock {
+                        kind,
+                        body: String::new(),
+                        source: line,
+                    });
+                }
+                None => push_text(out, line),
+            },
             Some(block) => {
                 block.source.push_str(&line);
                 if is_closer(&line) {
                     if let Some(block) = self.block.take() {
                         out.push(FenceOutput::Block {
-                            html: block.html,
+                            kind: block.kind,
+                            body: block.body,
                             source: block.source,
                         });
                     }
                 } else {
-                    block.html.push_str(&line);
+                    block.body.push_str(&line);
                 }
             }
         }
@@ -96,16 +116,23 @@ fn push_text(out: &mut Vec<FenceOutput>, text: String) {
     }
 }
 
-/// The fences that open a view.
-const VIEW_FENCES: [&str; 2] = ["```view", "~~~view"];
+/// The fences that open a drawable block.
+const FENCES: [(&str, BlockKind); 4] = [
+    ("```view", BlockKind::View),
+    ("~~~view", BlockKind::View),
+    ("```mermaid", BlockKind::Mermaid),
+    ("~~~mermaid", BlockKind::Mermaid),
+];
 
-/// A line like ```` ```view ```` (any case, `~~~` too, optional words after a space).
-fn is_opener(line: &str) -> bool {
+/// The kind of block a line like ```` ```view ```` opens (any case, `~~~` too, optional words
+/// after a space).
+fn opener_kind(line: &str) -> Option<BlockKind> {
     let trimmed = line.trim().to_ascii_lowercase();
-    VIEW_FENCES.iter().any(|fence| {
+    FENCES.iter().find_map(|(fence, kind)| {
         trimmed
             .strip_prefix(fence)
             .is_some_and(|rest| rest.is_empty() || rest.starts_with([' ', '{']))
+            .then_some(*kind)
     })
 }
 
@@ -114,10 +141,10 @@ fn is_closer(line: &str) -> bool {
     trimmed.len() >= 3 && (trimmed.chars().all(|c| c == '`') || trimmed.chars().all(|c| c == '~'))
 }
 
-/// Whether an incomplete line may still turn out to be a view fence opener.
+/// Whether an incomplete line may still turn out to be a fence opener.
 fn could_open(partial: &str) -> bool {
     let trimmed = partial.trim_start().to_ascii_lowercase();
-    VIEW_FENCES
+    FENCES
         .iter()
-        .any(|fence| fence.starts_with(&trimmed) || trimmed.starts_with(fence))
+        .any(|(fence, _)| fence.starts_with(&trimmed) || trimmed.starts_with(fence))
 }

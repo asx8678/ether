@@ -1,0 +1,2 @@
+# Vendored, minified third-party code (see docs/PROVENANCE.md).
+crates/tui/src/view_kit/vendor/*.js -diff linguist-vendored

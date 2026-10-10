@@ -1,0 +1,113 @@
+# Mermaid diagrams and view kit tiles/tables: a flowchart, a sequence diagram, x-stat and x-table, and a broken diagram that falls back to its source.
+# Try in kitty or Ghostty: ETHER_HOME=$(mktemp -d) ether --replay <this file> "show the architecture"
+{"type": "response.created", "response": {"id": "resp_1"}}
+{"type": "response.output_item.added", "output_index": 0, "item": {"type": "message", "id": "msg_1", "role": "assistant", "content": []}}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "Architectur"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "e:\n\n```merm"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "aid\nflowcha"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "rt LR\n  cli"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "[ether-cli]"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": " --> tui[et"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "her-tui]\n  "}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "tui -- Op -"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "-> engine\n "}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": " engine -- "}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "EventMsg --"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "> tui\n  sub"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "graph core "}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "[ether-engi"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "ne]\n    eng"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "ine[turn lo"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "op] --> too"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "ls[tool rou"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "ter]\n    to"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "ols --> san"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "dbox[(sandb"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "ox)]\n  end\n"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "  engine --"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": " prompt -->"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": " llm[ether-"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "llm]\n  llm "}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "-- SSE --> "}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "api((Zro \u00b7 "}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "GLM 5.3))\n "}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": " engine -.-"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "> rollout[("}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "rollout JSO"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "NL)]\n```\n\nO"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "ne turn:\n\n`"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "``mermaid\ns"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "equenceDiag"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "ram\n  parti"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "cipant T as"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": " TUI\n  part"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "icipant E a"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "s Engine\n  "}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "participant"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": " M as GLM 5"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": ".3\n  T->>E:"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": " Op::TurnIn"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "put\n  E->>M"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": ": chat requ"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "est\n  M-->>"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "E: tool cal"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "l\n  E->>E: "}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "run in sand"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "box\n  E->>M"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": ": tool outp"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "ut\n  M-->>E"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": ": answer\n  "}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "E-->>T: Eve"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "ntMsg strea"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "m\n```\n\nStat"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "us:\n\n```vie"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "w\n<div clas"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "s=\"row\">\n  "}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "<x-stat lab"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "el=\"build\" "}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "value=\"pass"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "ing\" tone=\""}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "ok\"></x-sta"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "t>\n  <x-sta"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "t label=\"cl"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "ippy\" value"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "=\"clean\" to"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "ne=\"ok\"></x"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "-stat>\n  <x"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "-stat label"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "=\"commits\" "}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "value=\"5 un"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "pushed\" ton"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "e=\"warn\" hi"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "nt=\"main\"><"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "/x-stat>\n  "}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "<x-stat lab"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "el=\"cache\" "}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "value=\"94%\""}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": " tone=\"info"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "\" hint=\"pro"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "mpt hits\"><"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "/x-stat>\n</"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "div>\n<x-tab"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "le>\n| Crate"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": " | .rs file"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "s | Lines |"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "\n|---|---|-"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "--|\n| tui |"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": " 109 | 34,6"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "40 |\n| engi"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "ne | 37 | 7"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": ",740 |\n| ll"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "m | 11 | 1,"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "860 |\n| ui-"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "spec | 1 | "}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "211 |\n</x-t"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "able>\n```\n\n"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "Broken diag"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "ram:\n\n```me"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "rmaid\nflowc"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "hart LR\n  a"}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": " --> \n b[[["}
+{"type": "response.output_text.delta", "item_id": "msg_1", "output_index": 0, "content_index": 0, "delta": "\n```"}
+{"type": "response.output_item.done", "output_index": 0, "item": {"type": "message", "id": "msg_1", "role": "assistant", "content": [{"type": "output_text", "text": "Architecture:\n\n```mermaid\nflowchart LR\n  cli[ether-cli] --> tui[ether-tui]\n  tui -- Op --> engine\n  engine -- EventMsg --> tui\n  subgraph core [ether-engine]\n    engine[turn loop] --> tools[tool router]\n    tools --> sandbox[(sandbox)]\n  end\n  engine -- prompt --> llm[ether-llm]\n  llm -- SSE --> api((Zro \u00b7 GLM 5.3))\n  engine -.-> rollout[(rollout JSONL)]\n```\n\nOne turn:\n\n```mermaid\nsequenceDiagram\n  participant T as TUI\n  participant E as Engine\n  participant M as GLM 5.3\n  T->>E: Op::TurnInput\n  E->>M: chat request\n  M-->>E: tool call\n  E->>E: run in sandbox\n  E->>M: tool output\n  M-->>E: answer\n  E-->>T: EventMsg stream\n```\n\nStatus:\n\n```view\n<div class=\"row\">\n  <x-stat label=\"build\" value=\"passing\" tone=\"ok\"></x-stat>\n  <x-stat label=\"clippy\" value=\"clean\" tone=\"ok\"></x-stat>\n  <x-stat label=\"commits\" value=\"5 unpushed\" tone=\"warn\" hint=\"main\"></x-stat>\n  <x-stat label=\"cache\" value=\"94%\" tone=\"info\" hint=\"prompt hits\"></x-stat>\n</div>\n<x-table>\n| Crate | .rs files | Lines |\n|---|---|---|\n| tui | 109 | 34,640 |\n| engine | 37 | 7,740 |\n| llm | 11 | 1,860 |\n| ui-spec | 1 | 211 |\n</x-table>\n```\n\nBroken diagram:\n\n```mermaid\nflowchart LR\n  a --> \n b[[[\n```"}]}}
+{"type": "response.completed", "response": {"id": "resp_1", "usage": {"input_tokens": 1500, "input_tokens_details": {"cached_tokens": 1400}, "output_tokens": 420, "output_tokens_details": {"reasoning_tokens": 0}, "total_tokens": 1920}}}

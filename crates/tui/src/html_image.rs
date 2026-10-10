@@ -21,9 +21,9 @@ pub(crate) const MAX_ROWS: u16 = 120;
 /// How views should look to match the terminal.
 #[derive(Debug, Clone)]
 pub(crate) struct PageStyle {
-    /// CSS text and background colours.
-    pub(crate) fg: String,
-    pub(crate) bg: String,
+    /// Text and background colours.
+    pub(crate) fg: (u8, u8, u8),
+    pub(crate) bg: (u8, u8, u8),
     pub(crate) dark: bool,
 }
 
@@ -31,9 +31,8 @@ impl PageStyle {
     /// From the terminal's default colours when known; otherwise a dark background is assumed.
     pub(crate) fn from_terminal(fg: Option<(u8, u8, u8)>, bg: Option<(u8, u8, u8)>) -> Self {
         let dark = bg.is_none_or(|(r, g, b)| is_dark(r, g, b));
-        let css = |(r, g, b): (u8, u8, u8)| format!("rgb({r},{g},{b})");
-        let fg = fg.map(css).unwrap_or_else(|| if dark { "#e4e4e4" } else { "#1f1f1f" }.to_string());
-        let bg = bg.map(css).unwrap_or_else(|| if dark { "#1d1f21" } else { "#ffffff" }.to_string());
+        let fg = fg.unwrap_or(if dark { (0xe4, 0xe4, 0xe4) } else { (0x1f, 0x1f, 0x1f) });
+        let bg = bg.unwrap_or(if dark { (0x1d, 0x1f, 0x21) } else { (0xff, 0xff, 0xff) });
         Self { fg, bg, dark }
     }
 }
@@ -52,27 +51,29 @@ pub fn view_instructions(dark: Option<bool>, width_px: Option<u32>) -> String {
         None => "the terminal's width".to_string(),
     };
     format!(
-        "Your answers are shown in a terminal that draws views: put HTML in a ```view block and \
-         the user sees it rendered as an image in its place, styled to match the terminal \
-         ({background} background). Static only (no JavaScript, no external URLs). Views are \
-         drawn {width} wide.\n\
-         Write semantic HTML with these building blocks; avoid inline colours, fixed pixel sizes \
-         and hand-drawn SVG:\n\
+        "Your answers are shown in a terminal that draws views: put HTML in a ```view block \
+         (not ```html, which is shown as code) and the user sees it rendered as an image in its \
+         place, styled to match the terminal ({background} background). Static only (no \
+         JavaScript, no external URLs). Views are drawn {width} wide.\n\
+         Diagrams (architecture, flows, sequences, states, timelines) go in a ```mermaid block \
+         instead of HTML; they are laid out and drawn for you. Keep labels short.\n\
+         In views, write semantic HTML with these building blocks; avoid inline colours, fixed \
+         pixel sizes and hand-drawn SVG:\n\
          - layout: .row (side by side), .stack (vertical), .grid (CSS grid; set \
          grid-template-columns), .card (a box; tone-ok|warn|err|info|accent|violet tints it), \
-         .badge with ok|warn|err|info, .muted, tables (td.num for numbers)\n\
+         .badge with ok|warn|err|info, .muted\n\
+         - <x-table> with a markdown table inside: a styled table, numbers right-aligned\n\
+         - <x-stat label=\"…\" value=\"…\" tone=\"ok\" hint=\"…\">: a status tile\n\
          - <x-bars unit=\"…\"><x-bar label=\"…\" value=\"…\"></x-bar>…</x-bars>: a bar chart, \
          scaled for you\n\
          - <x-gauge label=\"…\" value=\"…\" max=\"100\" type=\"ring|bar\" tone=\"ok\">\n\
          - <x-spark values=\"3 5 2 8\">: a sparkline\n\
-         - <x-edge from=\"id\" to=\"id\" label=\"…\" tone=\"…\" dashed both>: an arrow between two \
-         elements with ids; lay the boxes out with .grid and the arrows are drawn for you\n\
          - colours, if needed: var(--ok) var(--warn) var(--err) var(--info) var(--accent) \
          var(--violet) var(--muted)\n\
          When the answer has numbers to compare, show them in a view instead of listing them; \
-         also use views for diagrams, dashboards and side-by-side comparisons. Short answers, \
-         simple lists, code and text the user may copy stay markdown; ```html blocks stay code. \
-         Do not repeat a view's numbers in prose; add at most one sentence."
+         also use views for dashboards and side-by-side comparisons. Short answers, simple \
+         lists, code and text the user may copy stay markdown. Do not repeat a view's numbers \
+         in prose; add at most one sentence."
     )
 }
 

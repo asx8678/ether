@@ -10,6 +10,7 @@ use crate::exec_cell::CommandOutput;
 use crate::exec_cell::ExecCell;
 use crate::exec_cell::new_active_exec_command;
 use crate::history_cell;
+use crate::html_fence::BlockKind;
 use crate::html_fence::FenceOutput;
 use crate::html_fence::HtmlFenceFilter;
 use crate::html_image;
@@ -141,6 +142,7 @@ enum Pending {
     Text(String),
     View {
         seq: u64,
+        kind: BlockKind,
         source: String,
         result: Option<Result<RenderedImage, String>>,
     },
@@ -577,7 +579,7 @@ impl App {
         match output {
             FenceOutput::Text(text) if self.pending.is_empty() => self.on_text_delta(&text),
             FenceOutput::Text(text) => self.pending.push_back(Pending::Text(text)),
-            FenceOutput::Block { html, source } => {
+            FenceOutput::Block { kind, body, source } => {
                 let seq = self.next_view;
                 self.next_view += 1;
                 let max_cols = self
@@ -587,7 +589,7 @@ impl App {
                 let queued = self
                     .renderer
                     .as_ref()
-                    .is_some_and(|renderer| renderer.render(seq, html, max_cols));
+                    .is_some_and(|renderer| renderer.render(seq, kind, body, max_cols));
                 if !queued {
                     self.on_text_delta(&source);
                     return;
@@ -598,6 +600,7 @@ impl App {
                 }
                 self.pending.push_back(Pending::View {
                     seq,
+                    kind,
                     source,
                     result: None,
                 });
@@ -626,10 +629,11 @@ impl App {
             match self.pending.pop_front() {
                 Some(Pending::Text(text)) => self.on_text_delta(&text),
                 Some(Pending::View {
+                    kind,
                     source,
                     result: Some(result),
                     ..
-                }) => self.show_view(source, result),
+                }) => self.show_view(kind, source, result),
                 _ => {}
             }
         }
@@ -652,10 +656,11 @@ impl App {
             match item {
                 Pending::Text(text) => self.on_text_delta(&text),
                 Pending::View {
+                    kind,
                     source,
                     result: Some(result),
                     ..
-                } => self.show_view(source, result),
+                } => self.show_view(kind, source, result),
                 Pending::View { source, .. } => self.on_text_delta(&source),
             }
         }
@@ -663,7 +668,7 @@ impl App {
         self.answer_streamed = false;
     }
 
-    fn show_view(&mut self, source: String, result: Result<RenderedImage, String>) {
+    fn show_view(&mut self, kind: BlockKind, source: String, result: Result<RenderedImage, String>) {
         match result {
             Ok(image) => {
                 let id = html_image::new_image_id();
@@ -683,8 +688,12 @@ impl App {
                 }
             }
             Err(err) => {
+                let what = match kind {
+                    BlockKind::View => "view",
+                    BlockKind::Mermaid => "diagram",
+                };
                 self.push_cell(history_cell::new_warning_event(format!(
-                    "html view not rendered ({err}); showing its source"
+                    "{what} not drawn ({err}); showing its source"
                 )));
                 self.on_text_delta(&source);
                 self.finish_stream();

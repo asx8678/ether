@@ -73,6 +73,35 @@
     spark.replaceWith(node);
   }
 
+  // <x-table>| a | b |\n|---|---|\n| 1 | 2 |</x-table>: a markdown table, styled, with numeric
+  // columns right-aligned (about half the tokens of <table> markup).
+  for (const source of document.querySelectorAll('x-table')) {
+    const rows = source.textContent.split('\n').map((line) => line.trim()).filter((line) => line.includes('|'))
+      .filter((line) => !/^\|?\s*:?-{2,}/.test(line))
+      .map((line) => line.replace(/^\|/, '').replace(/\|$/, '').split('|').map((cell) => cell.trim()));
+    const table = el('table');
+    if (rows.length) {
+      const numeric = rows[0].map((_, col) => rows.length > 1 && rows.slice(1).every((row) => /^[-+]?[\d.,]+\s*[%kKMGTB]*\w{0,3}$/.test(row[col] ?? '')));
+      const head = table.appendChild(el('thead')).appendChild(el('tr'));
+      rows[0].forEach((cell, col) => { const th = head.appendChild(el('th', numeric[col] ? 'num' : null, cell)); });
+      const body = table.appendChild(el('tbody'));
+      for (const row of rows.slice(1)) {
+        const tr = body.appendChild(el('tr'));
+        rows[0].forEach((_, col) => tr.appendChild(el('td', numeric[col] ? 'num' : null, row[col] ?? '')));
+      }
+    }
+    source.replaceWith(table);
+  }
+
+  // <x-stat label="build" value="passing" tone="ok" hint="…">: a status tile.
+  for (const stat of document.querySelectorAll('x-stat')) {
+    const tile = el('div', 'x-stat');
+    tile.style.setProperty('--tone', tone(stat.getAttribute('tone') || 'fg'));
+    tile.append(el('div', 'x-stat-label', stat.getAttribute('label') || ''), el('div', 'x-stat-value', stat.getAttribute('value') ?? stat.textContent.trim()));
+    if (stat.getAttribute('hint')) tile.append(el('div', 'x-stat-hint', stat.getAttribute('hint')));
+    stat.replaceWith(tile);
+  }
+
   // <x-edge from to label tone dashed both>: arrows between elements the model laid out.
   const edges = [];
   for (const edge of document.querySelectorAll('x-edge')) {
