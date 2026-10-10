@@ -145,14 +145,10 @@ Windows-only dependencies are dropped.
 - Workspace: start from Codex's `Cargo.lock`, `rust-toolchain.toml`, `rustfmt.toml`, `clippy.toml`, `[workspace.lints]` (38 clippy entries), and its dev and release profiles.
 - Layout: `crates/<codex dir>`, keeping `utils/`. `vendor/bubblewrap` goes at `crates/vendor/bubblewrap` so `bwrap/build.rs` finds it unchanged. `ext/items` becomes `crates/extension-items`.
 - Platforms: Linux and macOS only; Windows-only code and dependencies are removed. Linux-only code stays behind its `cfg` and will be checked on a Linux machine later.
-- **Tests: none are written and none are run.**
-  - Copied crates keep their upstream unit-test code untouched. `cargo check` never compiles it.
-  - `tests/` directories and benches are not copied.
-  - Ported Tier 3 code drops its test code.
-  - Every step's gate is `cargo check --workspace`. The test gates in Phases 1–6 (mock SSE tests, the prompt-cache prefix test, insta snapshots) are dropped.
+- **No tests.** None are written, copied or run. Copied crates lose all test code: `#[cfg(test)]` items, `*_tests.rs` files, `tests/`, `benches/`, insta `snapshots/` and dev-dependencies. Every step's gate is `cargo check --workspace`; from Phase 3 on, the check is building and running the binary. The test gates in Phases 1–6 (mock SSE tests, the prompt-cache prefix test, insta snapshots) are dropped.
 
-## 7. Open questions
+## 7. Resolved
 
-1. Do you approve C1, C2, C3, C5 and C6? C4 can wait until Phase 3.
-2. Tests: should copied crates keep their upstream unit-test code unused (the proposal), or should it be removed?
-3. May I run the built binary myself for quick manual checks in Phases 3–6, or are all runtime checks yours?
+1. C1, C2, C3, C5 and C6 are approved; C4 will be decided at Phase 3.
+2. Unit tests are not copied at all; test code is stripped from copied crates.
+3. Running the built binary is the check.

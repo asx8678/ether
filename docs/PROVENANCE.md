@@ -1,0 +1,16 @@
+# Provenance
+
+Everything here comes from OpenAI Codex (<https://github.com/openai/codex>, Apache-2.0) at commit `806d9732c974bc8a51b8317c1bd8985544fe627c`, unless noted otherwise. Every changed file has a "Modified from OpenAI Codex" note on its first line.
+
+Applied to every copied crate (see `DECISIONS.md`):
+
+- unit tests, benches and dev-dependencies removed;
+- Windows-only code and Windows-only dependency tables removed;
+- `BUILD.bazel` not copied.
+
+| ether path | Codex source | Changes |
+|---|---|---|
+| `LICENSE`, `NOTICE` | `LICENSE`, `NOTICE` | none |
+| `rust-toolchain.toml`, `rustfmt.toml` | `codex-rs/rust-toolchain.toml`, `codex-rs/rustfmt.toml` | none |
+| `clippy.toml` | `codex-rs/clippy.toml` | removed the sqlx rules |
+| `Cargo.toml` | `codex-rs/Cargo.toml` | trimmed to the copied crates; only the `dev` and `release` profiles; only the crossterm patch |

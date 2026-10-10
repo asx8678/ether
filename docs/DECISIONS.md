@@ -1,0 +1,22 @@
+# Decisions
+
+One line per decision, with the reason. Newest last.
+
+- Pin Codex at `806d973` (your checkout's HEAD, `c3d3b14` plus one code-mode-only commit): the verified facts still hold and provenance matches the checkout.
+- Copy from a `git archive` export in `~/.cache/ether/codex-806d973`: `CODEX_SRC` is never written and untracked files never leak in.
+- Target is `ether` (workspace `ether`); new crates will be `ether-engine`, `ether-llm`, `ether-tui`, `ether-cli`. Copied crates keep their `codex-*` names until a rename you approve.
+- Crates already in Codex's `Cargo.lock` count as approved dependencies; anything else needs your approval.
+- `Cargo.lock` is re-seeded from Codex's lock before every `cargo check`: every dependency resolves to the exact version Codex ships.
+- Toolchain 1.95.0, edition 2024, Codex `rustfmt.toml`, `clippy.toml` (minus the sqlx rules) and `[workspace.lints]`: copied code builds and lints as it does upstream.
+- Only the `dev` and `release` profiles are kept: `dev-small`, `profiling` and `ci-test` serve Codex CI.
+- No tests (your instruction): nothing is written, copied or run. Copied crates lose `#[cfg(test)]` items, `*_tests.rs` files, `tests/`, `benches/`, insta `snapshots/` and dev-dependencies. The check is building and running the binary.
+- Linux and macOS only: Windows-only code (`cfg(windows)`, `cfg(target_os = "windows")`, `cfg(all(windows, ...))`) and Windows-only dependency tables are stripped from copied crates. Linux gets checked later on a Linux machine.
+- `BUILD.bazel` files are not copied: ether builds with Cargo only.
+- The mechanical cuts are scripted (`scripts/strip-cfg.pl`, `scripts/orphans.pl`, `scripts/toml-strip.pl`) so they can be reapplied to a newer Codex.
+- Layout is `crates/<codex dir>`. `ext/items` becomes `crates/extension-items`; `vendor/bubblewrap` becomes `crates/vendor/bubblewrap`, so `bwrap/build.rs` is unchanged.
+- `vendor/bubblewrap` keeps its own LGPL-2.0-or-later licence (`COPYING`); its `tests/` are not copied.
+- C1: keep `codex-extension-items` (used by protocol, tools and rollout; 172 lines).
+- C2: copy exec-server's `local_file_system.rs` and `local_file_system_read.rs` into `codex-file-system` as its local implementation.
+- C3: drop rollout's SQLite state (`state_db.rs`, `sqlite_metrics.rs`, SQLite-only parts of `metadata.rs`); listing and replay use JSONL files only.
+- C5: carry only the crossterm `[patch.crates-io]` fork; the tungstenite patches are dropped because no websocket code is copied.
+- C6: drop dev-dependencies on crates not on the list. All dev-dependencies are removed anyway now that tests are gone.
