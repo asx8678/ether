@@ -32,17 +32,11 @@ pub enum SandboxablePreference {
     Forbid,
 }
 
-pub fn get_platform_sandbox(windows_sandbox_enabled: bool) -> Option<SandboxType> {
+pub fn get_platform_sandbox(_windows_sandbox_enabled: bool) -> Option<SandboxType> {
     if cfg!(target_os = "macos") {
         Some(SandboxType::MacosSeatbelt)
     } else if cfg!(target_os = "linux") {
         Some(SandboxType::LinuxSeccomp)
-    } else if cfg!(target_os = "windows") {
-        if windows_sandbox_enabled {
-            Some(SandboxType::WindowsRestrictedToken)
-        } else {
-            None
-        }
     } else {
         None
     }
@@ -396,10 +390,6 @@ impl SandboxManager {
                     Some(linux_sandbox_arg0_override(exe)),
                     Some(pending),
                 )
-            }
-            // Windows sandboxes are never selected on Linux or macOS (see `select_initial`).
-            SandboxType::WindowsRestrictedToken | SandboxType::WindowsMxc => {
-                (argv, None, Some(pending_sandboxed_request?))
             }
         };
 

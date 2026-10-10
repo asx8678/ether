@@ -33,17 +33,13 @@ use crate::config_types::ServiceTier;
 use crate::config_types::Verbosity;
 use crate::protocol::MultiAgentVersion;
 
-mod access_programs;
 mod incremental_tools;
 pub use incremental_tools::IncrementalToolMessages;
 
 #[path = "openai_models/reasoning_effort.rs"]
 mod reasoning_effort;
 
-pub use access_programs::ModelAccessPrograms;
 
-/// Backend model-catalog specialty identifying cybersecurity-focused models.
-pub const MODEL_SPECIALTY_CYBER: &str = "cyber";
 pub const SPEED_TIER_FAST: &str = "fast";
 
 /// See https://platform.openai.com/docs/guides/reasoning?api-mode=responses#get-started-with-reasoning
@@ -253,9 +249,6 @@ pub struct ModelPreset {
     /// Catalog default service tier id for this model.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub default_service_tier: Option<String>,
-    /// Caller-specific explicit access programs, when discovery resolved them.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub available_access_programs: Option<ModelAccessPrograms>,
     /// Whether this is the default model for new users.
     pub is_default: bool,
     /// recommended upgrade model
@@ -412,8 +405,6 @@ pub struct ModelInfo {
     pub service_tiers: Vec<ModelServiceTier>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub default_service_tier: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub available_access_programs: Option<ModelAccessPrograms>,
     pub availability_nux: Option<ModelAvailabilityNux>,
     pub upgrade: Option<ModelInfoUpgrade>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -951,7 +942,6 @@ impl From<ModelInfo> for ModelPreset {
             additional_speed_tiers: info.additional_speed_tiers,
             service_tiers: info.service_tiers,
             default_service_tier: info.default_service_tier,
-            available_access_programs: info.available_access_programs,
             is_default: false, // default is the highest priority available model
             upgrade: info.upgrade.as_ref().map(|upgrade| ModelUpgrade {
                 id: upgrade.model.clone(),

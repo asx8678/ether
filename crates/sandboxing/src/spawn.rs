@@ -34,11 +34,6 @@ pub async fn spawn_process(request: SpawnRequest<'_>) -> Result<SpawnedProcess> 
         }
     };
 
-    if request.sandbox == SandboxType::WindowsRestrictedToken {
-
-        #[cfg(not(target_os = "windows"))]
-        anyhow::bail!("Windows sandbox process spawn is unavailable on this platform");
-    }
 
     let (program, args) = request
         .command
