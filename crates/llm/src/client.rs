@@ -48,6 +48,9 @@ pub struct Prompt {
     /// Chat Completions only: send Z.AI's `thinking: {type: "enabled", clear_thinking: false}`,
     /// which keeps GLM's reasoning across turns (ether replays it in each request).
     pub glm_thinking: bool,
+    /// Sent as `prompt_cache_key`: one value per session, so the provider routes its requests
+    /// to the same cache (the thread id; it never changes within a session).
+    pub cache_key: Option<String>,
 }
 
 /// Streams model responses for prompts. Implementations hold no per-turn state.
@@ -170,6 +173,7 @@ impl ResponsesModelClient {
             reasoning: prompt.reasoning.clone(),
             store: false,
             include,
+            prompt_cache_key: prompt.cache_key.clone(),
             text: create_text_param_for_request(
                 prompt.verbosity,
                 &prompt.output_schema,

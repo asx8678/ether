@@ -3,6 +3,7 @@ mod chat;
 mod client;
 mod common;
 mod error;
+mod overflow;
 mod replay;
 mod responses;
 mod responses_headers;

@@ -8,7 +8,8 @@ Where ether stands, and what comes next. Details live in the phase docs and DECI
 - Phase 6 follow-up: HTML views (```` ```view ````) and Mermaid diagrams (```` ```mermaid ````) drawn by a warm headless Chrome and shown with kitty image placeholders; the view kit (`x-bars`, `x-gauge`, `x-spark`, `x-stat`, `x-table`, cards, badges).
 - Phase 7 (daily driver): prompt history, resume shows the conversation, slash commands, `@` file mentions, release binary installed at `~/.cargo/bin/ether`.
 - Full review (2026-10-11) and fixes in three batches: untrusted project config limited to safe keys, approval queue, turn abort/shutdown ordering, chat retry/truncation, 429 and overflow handling, TUI ordering and layout, plain-mode exit status, third-party notices, doc drift, Windows leftovers.
-- Everything pushed to `origin/main` (github.com/asx8678/ether).
+- Phase 8 (quick wins from prime-agent): wider overflow detection, `prompt_cache_key`, quota parking and jitter, `/copy`, OSC 133 prompt marks, exit robustness. See PHASE8.md.
+- Pushed to `origin/main` (github.com/asx8678/ether) up to the review fixes; the status note and Phase 8 are local commits, not pushed yet.
 
 ## Open decisions (waiting on you)
 
@@ -17,16 +18,9 @@ Where ether stands, and what comes next. Details live in the phase docs and DECI
 
 ## Next
 
-1. Quick wins borrowed from prime-agent (MIT, `/Users/adam2/projects/prime-agent`), proposed, not started:
-   - wider context-overflow detection (`pa-ai/src/utils_inner/overflow.rs`, incl. z.ai `model_context_window_exceeded`);
-   - `prompt_cache_key` and session-affinity headers (`pa-ai/src/providers/openai_completions/params.rs`), check whether Zro honours them;
-   - retry jitter and parking on quota (`pa-core/src/session_engine/provider_retry.rs`, `provider_park.rs`);
-   - `/copy` via the clipboard chain (`pa-tui/src/clipboard.rs`, `osc52.rs`);
-   - OSC 133 turn markers (`pa-tui/src/osc133.rs`);
-   - exit robustness (`pa-tui/src/exit_guard.rs`, `exit_restore.rs`).
-2. Medium: structured incremental compaction summaries, image paste, external editor and Ctrl-Z, per-provider compat flags.
-3. Multi-agent phase (planning round first): borrow prime-agent's designs, not its code: the subagent host contract (spawn/list/collect/delete/rename, `pa-core/src/session_engine/rlm_host.rs`), family-scoped agent messaging at turn boundaries, a goal driver with a persisted no-progress cap, autonomous mode as an outside policy, a cron/heartbeat scheduler, an append-only spawn ledger. Avoid process-per-session at first; `ractor` is not in Codex's lock (tokio tasks or Elixir instead).
-4. Later: durable memory delivered only at cold boundaries, MCP with three fixed meta-tools, web search.
+1. Medium (prime-agent designs): structured incremental compaction summaries, image paste, external editor and Ctrl-Z, per-provider compat flags.
+2. Multi-agent phase (planning round first): borrow prime-agent's designs, not its code: the subagent host contract (spawn/list/collect/delete/rename, `pa-core/src/session_engine/rlm_host.rs`), family-scoped agent messaging at turn boundaries, a goal driver with a persisted no-progress cap, autonomous mode as an outside policy, a cron/heartbeat scheduler, an append-only spawn ledger. Avoid process-per-session at first; `ractor` is not in Codex's lock (tokio tasks or Elixir instead).
+3. Later: durable memory delivered only at cold boundaries, MCP with three fixed meta-tools, web search.
 
 ## Working notes
 

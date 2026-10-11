@@ -116,3 +116,6 @@ Applied to every copied crate (see `DECISIONS.md`):
 | `crates/tui/src/prompt_history.rs`, `crates/tui/src/launch.rs` | – | new: prompt history; the TUI's launch options and session host trait |
 | `crates/cli/replay/gate.jsonl` | – | new: Phase 3 gate replay (apply_patch adds a file, exec_command reads it back, final answer) |
 | `THIRD_PARTY_NOTICES.md` | – | new: notices for the vendored Mermaid bundle (and the libraries inside it) and kitty's diacritics list |
+| `crates/llm/src/overflow.rs` | prime-agent `crates/pa-ai/src/utils_inner/overflow.rs` (MIT) | the provider wordings and the rate-limit exclusions on `regex-lite`; Z.AI's `model_context_window_exceeded` and a generic "maximum context" added |
+| `crates/tui/src/clipboard.rs` | prime-agent `crates/pa-tui/src/clipboard.rs`, `osc52.rs` (MIT) | no Windows; the OSC 52 bytes go back to the app, which writes them with the next draw |
+| `crates/tui/src/insert_history.rs` (OSC 133 marks only) | prime-agent `crates/pa-tui/src/osc133.rs` (MIT) | the marks are written around an inserted batch instead of riding in spans |

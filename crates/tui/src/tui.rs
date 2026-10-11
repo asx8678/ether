@@ -20,9 +20,13 @@ use crate::insert_history::insert_history_hyperlink_lines_with_mode_and_wrap_pol
 use crate::terminal_detection::terminal_info;
 use crate::terminal_hyperlinks::HyperlinkLine;
 use crossterm::cursor::MoveTo;
+use crossterm::cursor::Show;
 use crossterm::event::DisableBracketedPaste;
 use crossterm::event::EnableBracketedPaste;
 use crossterm::execute;
+use crossterm::style::Attribute;
+use crossterm::style::ResetColor;
+use crossterm::style::SetAttribute;
 use crossterm::terminal::Clear;
 use crossterm::terminal::ClearType;
 use crossterm::terminal::disable_raw_mode;
@@ -43,13 +47,21 @@ pub(crate) type Terminal = custom_terminal::Terminal<CrosstermBackend<Stdout>>;
 pub(crate) struct Tui {
     terminal: Terminal,
     scrollback: ScrollbackStrategy,
-    pending_history: Vec<Vec<HyperlinkLine>>,
+    /// Lines to insert, each batch with whether it is a prompt zone (OSC 133).
+    pending_history: Vec<(Vec<HyperlinkLine>, bool)>,
     /// Escape sequences (image uploads) to write before the next history insertion.
     pending_raw: Vec<u8>,
 }
 
 pub(crate) fn restore() {
-    let _ = execute!(stdout(), DisableBracketedPaste);
+    // Leave no colour set and the cursor visible, also when a frame was cut short.
+    let _ = execute!(
+        stdout(),
+        DisableBracketedPaste,
+        ResetColor,
+        SetAttribute(Attribute::Reset),
+        Show
+    );
     let _ = disable_raw_mode();
 }
 
@@ -71,10 +83,11 @@ impl Tui {
         })
     }
 
-    /// Queues lines to be written above the viewport on the next draw.
-    pub(crate) fn insert_history(&mut self, lines: Vec<HyperlinkLine>) {
+    /// Queues lines to be written above the viewport on the next draw; `prompt` marks them as
+    /// one of the user's prompts for terminals with OSC 133 navigation.
+    pub(crate) fn insert_history(&mut self, lines: Vec<HyperlinkLine>, prompt: bool) {
         if !lines.is_empty() {
-            self.pending_history.push(lines);
+            self.pending_history.push((lines, prompt));
         }
     }
 
@@ -125,7 +138,7 @@ impl Tui {
             writer.write_all(&raw)?;
             writer.flush()?;
         }
-        for lines in std::mem::take(&mut self.pending_history) {
+        for (lines, prompt) in std::mem::take(&mut self.pending_history) {
             let wrap_policy = HistoryLineWrapPolicy::PreWrap;
             let mode = self.scrollback.history_insertion_mode(wrap_policy);
             insert_history_hyperlink_lines_with_mode_and_wrap_policy(
@@ -134,6 +147,7 @@ impl Tui {
                 mode,
                 wrap_policy,
                 screen_size,
+                prompt,
             )?;
         }
         terminal.draw_with_size(screen_size, draw_fn)

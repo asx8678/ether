@@ -6,6 +6,8 @@
 
 use crate::bottom_pane::textarea::TextArea;
 use crate::bottom_pane::textarea::TextAreaState;
+use crate::clipboard;
+use crate::clipboard::Copied;
 use crate::diff_model;
 use crate::exec_cell::CommandOutput;
 use crate::exec_cell::ExecCell;
@@ -13,6 +15,7 @@ use crate::exec_cell::new_active_exec_command;
 use crate::history_cell;
 use crate::history_cell::HistoryCell;
 use crate::history_cell::HistoryRenderMode;
+use crate::history_cell::UserHistoryCell;
 use crate::html_fence::BlockKind;
 use crate::html_fence::FenceOutput;
 use crate::html_fence::HtmlFenceFilter;
@@ -66,6 +69,7 @@ use ratatui::widgets::Wrap;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::collections::VecDeque;
+use std::io::Write as _;
 use std::num::NonZeroUsize;
 use std::path::Path;
 use std::path::PathBuf;
@@ -74,6 +78,8 @@ use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 use std::time::Instant;
+use tokio::signal::unix::SignalKind;
+use tokio::signal::unix::signal;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 
@@ -85,7 +91,7 @@ const COMPOSER_PREFIX_WIDTH: u16 = 2;
 const TICK: Duration = Duration::from_millis(50);
 /// Rows of the `@` file popup and the session picker.
 const POPUP_ROWS: usize = 8;
-const HELP: &str = "/new  start a new session\n/resume  continue a session from this directory\n/compact  summarize the conversation to free context\n/status  model, session and token usage\n/quit  exit\n@path  mention a file (Tab completes) · ↑/↓ earlier prompts";
+const HELP: &str = "/new  start a new session\n/copy  copy the last answer to the clipboard\n/resume  continue a session from this directory\n/compact  summarize the conversation to free context\n/status  model, session and token usage\n/quit  exit\n@path  mention a file (Tab completes) · ↑/↓ earlier prompts";
 
 /// Runs the TUI until the user quits. The launch prompt is submitted right away.
 pub async fn run(launch: Launch) -> anyhow::Result<()> {
@@ -124,9 +130,18 @@ pub async fn run(launch: Launch) -> anyhow::Result<()> {
             ))),
         }
     };
-    app.shutdown_renderer();
+    // Give the terminal back first: the waits below can take seconds, and with the terminal
+    // cooked again a Ctrl-C ends them.
     let _ = tui.finish();
     drop(tui);
+    if app.turn_started.is_some() {
+        // Not eprintln!: after a hangup there is no terminal, and it would panic.
+        let _ = writeln!(
+            std::io::stderr(),
+            "ether: stopping the running turn (Ctrl-C to force)"
+        );
+    }
+    app.shutdown_renderer();
     shutdown_engine(&mut engine).await;
     result
 }
@@ -134,13 +149,20 @@ pub async fn run(launch: Launch) -> anyhow::Result<()> {
 /// Lets the engine write its rollout and stop.
 async fn shutdown_engine(engine: &mut Engine) {
     if engine.submit(Op::Shutdown).is_ok() {
-        while let Some(event) = engine.next_event().await {
-            if matches!(event.msg, EventMsg::ShutdownComplete) {
-                break;
+        let finished = async {
+            while let Some(event) = engine.next_event().await {
+                if matches!(event.msg, EventMsg::ShutdownComplete) {
+                    break;
+                }
             }
-        }
+        };
+        // The engine bounds its own wait for a running turn; this only guards against a hang.
+        let _ = tokio::time::timeout(ENGINE_SHUTDOWN_LIMIT, finished).await;
     }
 }
+
+/// The longest the TUI waits for the engine to record the session and stop.
+const ENGINE_SHUTDOWN_LIMIT: Duration = Duration::from_secs(20);
 
 /// What to do when the app loop returns without quitting.
 enum Switch {
@@ -168,6 +190,7 @@ enum Popup {
 enum AppEvent {
     FileMatches { query: String, matches: Vec<String> },
     Sessions(Result<Vec<SessionEntry>, String>),
+    Copied(Result<Copied, String>),
 }
 
 /// A question waiting on the user.
@@ -258,6 +281,8 @@ struct App {
     renderer: Option<ViewRenderer>,
     image_rx: Option<mpsc::UnboundedReceiver<ViewResult>>,
     history: PromptHistory,
+    /// The text of the most recent answer, for `/copy`.
+    last_answer: Option<String>,
     sessions: Arc<dyn SessionHost>,
     popup: Option<Popup>,
     /// An `@` mention the user closed with Esc (start, query); not reopened until it changes.
@@ -311,6 +336,7 @@ impl App {
             renderer,
             image_rx: Some(image_rx),
             history: PromptHistory::load(ether_home),
+            last_answer: None,
             sessions,
             popup: None,
             dismissed_mention: None,
@@ -327,6 +353,10 @@ impl App {
 
     async fn run(&mut self, engine: &mut Engine, tui: &mut Tui) -> anyhow::Result<()> {
         let mut events = EventStream::new();
+        // Closing the terminal window (SIGHUP) or `kill` (SIGTERM) quit like /quit, so the
+        // terminal is restored and the session recorded.
+        let mut hangup = signal(SignalKind::hangup())?;
+        let mut terminate = signal(SignalKind::terminate())?;
         let mut tick = tokio::time::interval(TICK);
         tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
         let (Some(mut image_rx), Some(mut app_rx)) = (self.image_rx.take(), self.app_rx.take())
@@ -348,6 +378,8 @@ impl App {
                 Some(image) = image_rx.recv() => self.on_image(image),
                 Some(event) = app_rx.recv() => self.on_app_event(event),
                 _ = tick.tick(), if self.is_animating() => self.on_tick(),
+                _ = hangup.recv() => self.quit = true,
+                _ = terminate.recv() => self.quit = true,
             }
         }
         self.image_rx = Some(image_rx);
@@ -381,6 +413,7 @@ impl App {
         self.answer_open = false;
         self.answer_streamed = false;
         self.history.reset();
+        self.last_answer = None;
     }
 
     fn on_app_event(&mut self, event: AppEvent) {
@@ -429,6 +462,26 @@ impl App {
                 self.push_cell(history_cell::new_error_event(format!(
                     "cannot list sessions: {err}"
                 )));
+            }
+            AppEvent::Copied(result) => {
+                let message = match result {
+                    Ok(Copied::Local) => "copied the last answer",
+                    Ok(Copied::Remote) => {
+                        "too large for the terminal channel; copied to the remote machine's clipboard"
+                    }
+                    Ok(Copied::Tmux) => "sent the last answer to tmux's clipboard",
+                    Ok(Copied::Osc52(sequence)) => {
+                        self.pending_raw.push(sequence);
+                        "asked the terminal to copy the last answer (paste to check)"
+                    }
+                    Err(err) => {
+                        self.push_cell(history_cell::new_error_event(format!(
+                            "cannot copy: {err}"
+                        )));
+                        return;
+                    }
+                };
+                self.push_cell(history_cell::new_info_event(message.to_string(), None));
             }
         }
     }
@@ -734,6 +787,17 @@ impl App {
                     let _ = tx.send(AppEvent::Sessions(entries));
                 });
             }
+            "/copy" => match self.last_answer.clone() {
+                None => self.push_cell(history_cell::new_warning_event(
+                    "no answer to copy yet".to_string(),
+                )),
+                Some(text) => {
+                    let tx = self.app_tx.clone();
+                    tokio::task::spawn_blocking(move || {
+                        let _ = tx.send(AppEvent::Copied(clipboard::copy(&text)));
+                    });
+                }
+            },
             "/quit" | "/exit" => self.quit = true,
             _ => self.push_cell(history_cell::new_error_event(format!(
                 "unknown command {command}; /help lists the commands"
@@ -834,6 +898,7 @@ impl App {
             }
             EventMsg::AgentMessage(message) => {
                 self.start_replay();
+                self.last_answer = Some(message.message.clone());
                 self.show_complete_answer(&message.message);
             }
             EventMsg::ContextCompacted(_) => self.push_cell(history_cell::new_info_event(
@@ -941,6 +1006,9 @@ impl App {
                         AgentMessageContent::Text { text } => text.as_str(),
                     })
                     .collect();
+                if !text.trim().is_empty() {
+                    self.last_answer = Some(text.clone());
+                }
                 if self.answer_streamed {
                     self.end_answer();
                 } else {
@@ -1317,16 +1385,17 @@ impl App {
             tui.write_raw(&raw);
         }
         for cell in std::mem::take(&mut self.pending_history) {
-            let mut lines = cell.display_hyperlink_lines(width);
+            let lines = cell.display_hyperlink_lines(width);
             if lines.is_empty() {
                 continue;
             }
             // A blank row between history cells, as in Codex (not between the chunks of one
             // streamed answer).
             if !cell.is_stream_continuation() {
-                lines.insert(0, HyperlinkLine::from(""));
+                tui.insert_history(vec![HyperlinkLine::from("")], false);
             }
-            tui.insert_history(lines);
+            let prompt = cell.as_any().is::<UserHistoryCell>();
+            tui.insert_history(lines, prompt);
         }
 
         let live = self.live_lines(width);

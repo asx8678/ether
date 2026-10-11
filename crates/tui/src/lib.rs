@@ -3,6 +3,7 @@
 //! compiled with dead code and unused imports allowed. ether's own modules (`app`, `tui`, `ui_spec_cell`, `html_fence`, `html_image`, `devtools`, `view_renderer`, `launch`, `prompt_history`) are not.
 
 mod app;
+mod clipboard;
 mod devtools;
 mod html_fence;
 mod html_image;

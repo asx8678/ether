@@ -128,6 +128,7 @@ async fn request_summary(
             verbosity: None,
             output_schema: None,
             glm_thinking: false,
+            cache_key: Some(sess.thread_id.to_string()),
         };
         match drain_to_completed(sess, cancel, &prompt).await {
             Ok(output) => return Ok(last_assistant_message(&output).unwrap_or_default()),

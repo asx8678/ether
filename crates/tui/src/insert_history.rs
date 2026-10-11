@@ -1,4 +1,4 @@
-// Modified from OpenAI Codex (codex-rs/tui/src/insert_history.rs @ 806d973): removed unit tests; removed Windows-only code.
+// Modified from OpenAI Codex (codex-rs/tui/src/insert_history.rs @ 806d973): removed unit tests; removed Windows-only code; optional OSC 133 prompt-zone marks around an insertion (the marks after prime-agent's osc133.rs, MIT).
 //! Inserts finalized history rows into terminal scrollback.
 //!
 //! Codex uses the terminal scrollback itself for finalized chat history, so inserting a history
@@ -102,6 +102,7 @@ where
         mode,
         wrap_policy,
         screen_size,
+        /*zone*/ false,
     )
 }
 
@@ -111,6 +112,7 @@ pub(crate) fn insert_history_hyperlink_lines_with_mode_and_wrap_policy<B>(
     mode: InsertHistoryMode,
     wrap_policy: HistoryLineWrapPolicy,
     screen_size: Size,
+    zone: bool,
 ) -> io::Result<()>
 where
     B: Backend<Error = io::Error> + Write,
@@ -144,7 +146,7 @@ where
                 if index > 0 {
                     queue!(writer, Print("\r\n"))?;
                 }
-                write_history_line(writer, line, wrap_width)?;
+                write_zoned_line(writer, line, wrap_width, zone, index, wrapped.len())?;
             }
 
             // Writing raw source text through the terminal preserves its soft-wrap metadata.
@@ -209,9 +211,9 @@ where
             // fetch/restore the cursor position. insert_history_lines should be cursor-position-neutral :)
             queue!(writer, MoveTo(/*x*/ 0, cursor_top))?;
 
-            for line in &wrapped {
+            for (index, line) in wrapped.iter().enumerate() {
                 queue!(writer, Print("\r\n"))?;
-                write_history_line(writer, line, wrap_width)?;
+                write_zoned_line(writer, line, wrap_width, zone, index, wrapped.len())?;
             }
 
             queue!(writer, ResetScrollRegion)?;
@@ -287,6 +289,32 @@ pub(crate) fn leading_whitespace_prefix(line: &Line<'_>) -> Line<'static> {
         }
     }
     Line::from(spans).style(line.style)
+}
+
+/// OSC 133 prompt start: terminals that know it (kitty, WezTerm, Ghostty, iTerm2) can jump
+/// between the user's prompts in scrollback.
+const ZONE_START: &str = "\x1b]133;A\x07";
+/// OSC 133 end of the prompt, then start of the output.
+const ZONE_END: &str = "\x1b]133;B\x07\x1b]133;C\x07";
+
+/// Writes one wrapped row, marking the start of a zone before its first row and the end after
+/// its last. The marks take no columns.
+fn write_zoned_line<W: Write>(
+    writer: &mut W,
+    line: &HyperlinkLine,
+    wrap_width: usize,
+    zone: bool,
+    index: usize,
+    count: usize,
+) -> io::Result<()> {
+    if zone && index == 0 {
+        queue!(writer, Print(ZONE_START))?;
+    }
+    write_history_line(writer, line, wrap_width)?;
+    if zone && index + 1 == count {
+        queue!(writer, Print(ZONE_END))?;
+    }
+    Ok(())
 }
 
 /// Render a single wrapped history line: clear continuation rows for wide lines,

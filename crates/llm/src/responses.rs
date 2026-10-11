@@ -94,23 +94,13 @@ pub(crate) fn map_transport_error(error: TransportError) -> ApiError {
                     retry_after,
                 };
             }
-            if matches!(status.as_u16(), 400 | 413) && is_context_overflow(&code, &message) {
+            if status.is_client_error()
+                && (crate::overflow::is_overflow(&code) || crate::overflow::is_overflow(&message))
+            {
                 return ApiError::ContextWindowExceeded;
             }
             ApiError::Api { status, message }
         }
         error => ApiError::Transport(error),
     }
-}
-
-/// Whether an error says the request does not fit the model's context window (OpenAI's
-/// `context_length_exceeded` code, or the usual wordings of OpenAI-compatible servers).
-fn is_context_overflow(code: &str, message: &str) -> bool {
-    let message = message.to_ascii_lowercase();
-    code == "context_length_exceeded"
-        || message.contains("context length")
-        || message.contains("context_length")
-        || message.contains("maximum context")
-        || message.contains("context window")
-        || message.contains("prompt is too long")
 }

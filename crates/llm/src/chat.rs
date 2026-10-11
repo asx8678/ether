@@ -61,6 +61,9 @@ pub fn build_chat_request(prompt: &Prompt) -> Value {
     {
         body.insert("reasoning_effort".to_string(), json!(effort.as_str()));
     }
+    if let Some(key) = &prompt.cache_key {
+        body.insert("prompt_cache_key".to_string(), json!(key));
+    }
     if prompt.glm_thinking {
         body.insert(
             "thinking".to_string(),
@@ -501,6 +504,9 @@ impl ChatStreamState {
                 .and_then(Value::as_str)
                 .map(str::to_string)
                 .unwrap_or_else(|| error.to_string());
+            if crate::overflow::is_overflow(&message) {
+                return Err(ApiError::ContextWindowExceeded);
+            }
             return Err(ApiError::Stream(message));
         }
         let mut events = Vec::new();
@@ -570,6 +576,10 @@ impl ChatStreamState {
                 if reason == "content_filter" {
                     return Err(ApiError::ContentFilter);
                 }
+                // Z.AI reports an oversized request as a finish reason.
+                if crate::overflow::is_overflow(&reason) {
+                    return Err(ApiError::ContextWindowExceeded);
+                }
                 self.finish_reason = Some(reason);
             }
         }
@@ -588,6 +598,10 @@ impl ChatStreamState {
     /// writing a tool call (its arguments are incomplete); a cut-off answer is kept with a note.
     fn finish(&mut self) -> Result<Vec<ResponseEvent>, ApiError> {
         let truncated = self.finish_reason.as_deref() == Some("length");
+        // Cut off before writing anything: the input filled the window (a silent overflow).
+        if truncated && self.text.is_none() && self.calls.is_empty() {
+            return Err(ApiError::ContextWindowExceeded);
+        }
         if truncated && !self.calls.is_empty() {
             return Err(ApiError::OutputTruncated);
         }

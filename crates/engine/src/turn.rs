@@ -328,7 +328,9 @@ async fn turn_loop(sess: &Arc<Session>, turn_id: &str, cancel: &CancellationToke
     }
 }
 
-/// Samples once, retrying stream failures up to the provider's `stream_max_retries`.
+/// Samples once, retrying stream failures up to the provider's `stream_max_retries`. A rate
+/// limit whose `Retry-After` is longer than [`MAX_RETRY_AFTER`] parks the turn until the reset
+/// (up to [`MAX_PARK`], at most [`MAX_PARKS`] times) without using up a retry.
 async fn sample_with_retries(
     sess: &Arc<Session>,
     turn_id: &str,
@@ -336,12 +338,11 @@ async fn sample_with_retries(
 ) -> Result<SamplingResult, SamplingError> {
     let max_retries = sess.config.model_provider.stream_max_retries();
     let mut retries = 0;
+    let mut parks = 0;
     loop {
         match run_sampling_request(sess, turn_id, cancel).await {
-            Err(SamplingError::Api(error)) if retries < max_retries && is_retryable(&error) => {
-                retries += 1;
-                // A rate limit's `Retry-After` (capped) wins over the exponential backoff.
-                let delay = match &error {
+            Err(SamplingError::Api(error)) if is_retryable(&error) => {
+                let server_delay = match &error {
                     ApiError::RateLimitExceeded {
                         retry_after: Some(after),
                         ..
@@ -349,13 +350,46 @@ async fn sample_with_retries(
                     | ApiError::Retryable {
                         retry_after: Some(after),
                         ..
-                    } => after.remaining_delay().min(MAX_RETRY_AFTER),
-                    _ => backoff(Duration::from_millis(200), retries),
+                    } => Some(after.remaining_delay()),
+                    _ => None,
+                };
+                let (delay, message) = match server_delay {
+                    Some(wait) if wait > MAX_RETRY_AFTER => {
+                        if parks >= MAX_PARKS || wait > MAX_PARK {
+                            return Err(SamplingError::Api(error));
+                        }
+                        parks += 1;
+                        // Jitter, but never past the longest park.
+                        let wait = with_jitter(wait).min(MAX_PARK);
+                        let until = chrono::Local::now()
+                            + chrono::Duration::from_std(wait).unwrap_or_default();
+                        (
+                            wait,
+                            format!("Rate limited; waiting until {}", until.format("%H:%M:%S")),
+                        )
+                    }
+                    _ if retries >= max_retries => return Err(SamplingError::Api(error)),
+                    // A rate limit's short `Retry-After` wins over the exponential backoff
+                    // (which carries its own jitter).
+                    Some(wait) => {
+                        retries += 1;
+                        (
+                            with_jitter(wait),
+                            format!("Reconnecting... {retries}/{max_retries}"),
+                        )
+                    }
+                    None => {
+                        retries += 1;
+                        (
+                            backoff(Duration::from_millis(200), retries),
+                            format!("Reconnecting... {retries}/{max_retries}"),
+                        )
+                    }
                 };
                 sess.send_event(
                     turn_id,
                     EventMsg::StreamError(StreamErrorEvent {
-                        message: format!("Reconnecting... {retries}/{max_retries}"),
+                        message,
                         codex_error_info: None,
                         additional_details: Some(error.to_string()),
                     }),
@@ -371,8 +405,20 @@ async fn sample_with_retries(
     }
 }
 
-/// The longest `Retry-After` the engine waits before retrying.
+/// The longest `Retry-After` the engine treats as a quick retry; longer ones park the turn.
 const MAX_RETRY_AFTER: Duration = Duration::from_secs(60);
+
+/// The longest reset a turn waits for (quota windows); a longer one fails the turn.
+const MAX_PARK: Duration = Duration::from_secs(15 * 60);
+
+/// How many times one sampling request may park.
+const MAX_PARKS: u32 = 3;
+
+/// Waits a little past a provider-reported reset, never before it: up to 20% longer, so
+/// sessions limited together do not all retry at the same instant.
+fn with_jitter(wait: Duration) -> Duration {
+    wait.mul_f64(1.0 + rand::random::<f64>() * 0.2)
+}
 
 fn is_retryable(error: &ApiError) -> bool {
     matches!(
@@ -402,6 +448,7 @@ async fn build_prompt(sess: &Session) -> Prompt {
         verbosity: None,
         output_schema: None,
         glm_thinking: config.model.glm_thinking,
+        cache_key: Some(sess.thread_id.to_string()),
     }
 }
 
