@@ -87,14 +87,21 @@ impl History {
             .filter_map(|envelope| output_call_id(&envelope.item))
             .map(str::to_string)
             .collect();
-        normalize::ensure_call_outputs_present(&mut self.items);
-        self.items
-            .iter()
+        // The outputs go at the end, in call order: the rollout appends them the same way, so
+        // a resumed history matches this one, and a call's outputs stay after all the calls of
+        // its response (which Chat Completions sends as one assistant message).
+        let mut normalized = self.items.clone();
+        normalize::ensure_call_outputs_present(&mut normalized);
+        let added: Vec<ResponseItem> = normalized
+            .into_iter()
             .filter(|envelope| {
                 output_call_id(&envelope.item).is_some_and(|call_id| !answered.contains(call_id))
             })
-            .map(|envelope| envelope.item.clone())
-            .collect()
+            .map(|envelope| envelope.item)
+            .collect();
+        self.items
+            .extend(added.iter().cloned().map(ResponseItemEnvelope::new));
+        added
     }
 
     /// Replaces every item with compacted history. The last request's token usage no longer

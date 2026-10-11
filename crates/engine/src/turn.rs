@@ -73,20 +73,75 @@ pub(crate) async fn run_turn(
                 record_user_input(&sess, &turn_id, pending).await;
                 continue;
             }
-        } else {
-            sess.end_turn(&turn_id).await;
         }
         break outcome;
     };
+    if matches!(outcome, TurnOutcome::Completed { .. }) {
+        emit_turn_end(&sess, &turn_id, started_at, outcome).await;
+        return;
+    }
+    // An aborted or failed turn is cleaned up and reported while it still holds the session,
+    // so no other turn interleaves; input sent meanwhile starts the next turn.
+    abandon_turn(&sess, matches!(outcome, TurnOutcome::Aborted)).await;
     emit_turn_end(&sess, &turn_id, started_at, outcome).await;
+    let pending = sess.end_turn_take_pending(&turn_id).await;
+    if !pending.is_empty() {
+        spawn_turn(&sess, pending).await;
+    }
 }
 
-/// Runs a turn that only compacts the conversation (`Op::Compact`).
-pub(crate) async fn run_compact_turn(
+/// Answers the calls the turn leaves open and drops its pending requests; an interrupted
+/// turn also records the marker that tells the model it was stopped.
+async fn abandon_turn(sess: &Session, interrupted: bool) {
+    sess.clear_pending_requests().await;
+    sess.close_open_calls().await;
+    if interrupted {
+        let marker = ContextualUserFragment::into(TurnAborted::interrupted());
+        sess.record_items(std::slice::from_ref(&marker)).await;
+    }
+}
+
+/// Starts a turn with `items` and remembers its task; returns the turn id, or `None` when a
+/// turn is already running or the session is shutting down.
+pub(crate) async fn spawn_turn(sess: &Arc<Session>, items: Vec<ResponseItem>) -> Option<String> {
+    let (turn_id, cancel) = sess.begin_turn().await?;
+    let task = tokio::spawn(boxed_turn(Arc::clone(sess), turn_id.clone(), items, cancel));
+    sess.set_turn_task(task).await;
+    Some(turn_id)
+}
+
+/// `run_turn` behind a `Send` box: a turn can start the next one, and the named type breaks
+/// the otherwise recursive future type.
+fn boxed_turn(
+    sess: Arc<Session>,
+    turn_id: String,
+    items: Vec<ResponseItem>,
+    cancel: CancellationToken,
+) -> futures::future::BoxFuture<'static, ()> {
+    Box::pin(run_turn(sess, turn_id, items, cancel))
+}
+
+/// Starts a compaction turn and remembers its task; `false` when a turn is running.
+pub(crate) async fn spawn_compact_turn(sess: &Arc<Session>) -> bool {
+    let Some((turn_id, cancel)) = sess.begin_turn().await else {
+        return false;
+    };
+    let task = tokio::spawn(boxed_compact_turn(Arc::clone(sess), turn_id, cancel));
+    sess.set_turn_task(task).await;
+    true
+}
+
+fn boxed_compact_turn(
     sess: Arc<Session>,
     turn_id: String,
     cancel: CancellationToken,
-) {
+) -> futures::future::BoxFuture<'static, ()> {
+    Box::pin(run_compact_turn(sess, turn_id, cancel))
+}
+
+/// Runs a turn that only compacts the conversation (`Op::Compact`). Input sent while it runs
+/// starts a normal turn afterwards.
+async fn run_compact_turn(sess: Arc<Session>, turn_id: String, cancel: CancellationToken) {
     let started_at = emit_turn_started(&sess, &turn_id).await;
     let outcome = match run_compact(&sess, &turn_id, &cancel).await {
         Ok(()) => TurnOutcome::Completed {
@@ -94,8 +149,14 @@ pub(crate) async fn run_compact_turn(
         },
         Err(error) => compact_error_outcome(error),
     };
-    sess.end_turn(&turn_id).await;
+    if !matches!(outcome, TurnOutcome::Completed { .. }) {
+        sess.clear_pending_requests().await;
+    }
     emit_turn_end(&sess, &turn_id, started_at, outcome).await;
+    let pending = sess.end_turn_take_pending(&turn_id).await;
+    if !pending.is_empty() {
+        spawn_turn(&sess, pending).await;
+    }
 }
 
 fn compact_error_outcome(error: CompactError) -> TurnOutcome {
@@ -127,7 +188,7 @@ async fn emit_turn_started(sess: &Session, turn_id: &str) -> chrono::DateTime<ch
     started_at
 }
 
-/// Emits a turn's final event (and records the interrupted-turn marker on abort).
+/// Emits a turn's final event.
 async fn emit_turn_end(
     sess: &Session,
     turn_id: &str,
@@ -173,10 +234,6 @@ async fn emit_turn_end(
             .await;
         }
         TurnOutcome::Aborted => {
-            sess.clear_pending_requests().await;
-            sess.close_open_calls().await;
-            let marker = ContextualUserFragment::into(TurnAborted::interrupted());
-            sess.record_items(std::slice::from_ref(&marker)).await;
             sess.send_event(
                 &turn_id,
                 EventMsg::TurnAborted(TurnAbortedEvent {

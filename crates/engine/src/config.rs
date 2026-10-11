@@ -7,6 +7,11 @@
 //!
 //! Each layer only sets the keys it names. The result is a plain [`EngineConfig`] value that
 //! is handed to the engine; nothing here is global.
+//!
+//! The project file comes with the repository, so it is not trusted: it may set only the model
+//! and UI keys ([`ConfigToml::project_safe`]). Keys that change what runs unasked or where
+//! requests (and API keys) go (providers, approval policy, sandbox, base instructions) are
+//! ignored there, with a warning the engine shows at session start.
 
 use crate::model_profile::ModelProfile;
 use codex_model_provider_info::ModelProviderInfo;
@@ -77,6 +82,28 @@ pub struct UiToml {
 }
 
 impl ConfigToml {
+    /// The keys a repository's own config file may set; returns the names of the others,
+    /// which are dropped.
+    fn project_safe(mut self) -> (ConfigToml, Vec<&'static str>) {
+        let mut ignored = Vec::new();
+        if self.model_provider.take().is_some() {
+            ignored.push("model_provider");
+        }
+        if !std::mem::take(&mut self.model_providers).is_empty() {
+            ignored.push("model_providers");
+        }
+        if self.approval_policy.take().is_some() {
+            ignored.push("approval_policy");
+        }
+        if self.sandbox_mode.take().is_some() {
+            ignored.push("sandbox_mode");
+        }
+        if self.instructions.take().is_some() {
+            ignored.push("instructions");
+        }
+        (self, ignored)
+    }
+
     /// Applies `other` on top of `self`; keys set in `other` win.
     fn merge(mut self, other: ConfigToml) -> ConfigToml {
         macro_rules! take {
@@ -129,6 +156,11 @@ pub struct EngineConfig {
     /// What the front end can display, told to the model in the `<terminal_display>` context
     /// section. Set by the front end before the engine starts; fixed for the session.
     pub display_instructions: Option<String>,
+    /// Offer `request_user_input`: only for a front end that answers
+    /// `EventMsg::RequestUserInput` with `Op::UserInputAnswer` (none does yet).
+    pub user_input_tool: bool,
+    /// Warnings shown to the user when the session starts (for example ignored config keys).
+    pub startup_warnings: Vec<String>,
 }
 
 impl EngineConfig {
@@ -183,9 +215,20 @@ pub fn load(overrides: ConfigOverrides) -> Result<EngineConfig, ConfigError> {
         .map_err(ConfigError::Cwd)?;
 
     let user = read_layer(&ether_home.join(CONFIG_FILE))?;
-    let project = read_layer(&cwd.join(PROJECT_DIR).join(CONFIG_FILE))?;
+    let project_path = cwd.join(PROJECT_DIR).join(CONFIG_FILE);
+    let (project, ignored) = read_layer(&project_path)?.project_safe();
     let merged = user.merge(project);
-    resolve(merged, overrides, ether_home, cwd)
+    let mut config = resolve(merged, overrides, ether_home, cwd)?;
+    if !ignored.is_empty() {
+        config.startup_warnings.push(format!(
+            "ignored {} in {}: a project's config may set only model and UI keys; set them in \
+             {} or on the command line",
+            ignored.join(", "),
+            project_path.display(),
+            config.ether_home.join(CONFIG_FILE).display()
+        ));
+    }
+    Ok(config)
 }
 
 fn read_layer(path: &Path) -> Result<ConfigToml, ConfigError> {
@@ -260,5 +303,7 @@ fn resolve(
             .unwrap_or_else(|| BASE_INSTRUCTIONS.to_string()),
         render_ui_tool: toml.ui.render_tool,
         display_instructions: None,
+        user_input_tool: false,
+        startup_warnings: Vec::new(),
     })
 }

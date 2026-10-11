@@ -234,7 +234,8 @@ struct App {
     exec_cells: HashMap<String, ExecCell>,
     /// `render_ui` views, live until later history is written after them or the turn ends.
     ui_views: Vec<UiSpecCell>,
-    approval: Option<PendingApproval>,
+    /// Questions waiting on the user, oldest first; parallel commands can ask at once.
+    approvals: VecDeque<PendingApproval>,
     token_info: Option<TokenUsageInfo>,
     turn_started: Option<Instant>,
     /// History to write above the viewport on the next draw.
@@ -294,7 +295,7 @@ impl App {
             reasoning: BTreeMap::new(),
             exec_cells: HashMap::new(),
             ui_views: Vec::new(),
-            approval: None,
+            approvals: VecDeque::new(),
             token_info: None,
             turn_started: None,
             pending_history: Vec::new(),
@@ -366,7 +367,7 @@ impl App {
     fn on_session_switched(&mut self) {
         self.token_info = None;
         self.turn_started = None;
-        self.approval = None;
+        self.approvals.clear();
         self.popup = None;
         self.rollout_path = None;
         self.replaying = false;
@@ -445,7 +446,7 @@ impl App {
     }
 
     fn on_key(&mut self, engine: &Engine, key: KeyEvent) -> anyhow::Result<()> {
-        if self.approval.is_some() {
+        if !self.approvals.is_empty() {
             self.on_approval_key(engine, key);
             return Ok(());
         }
@@ -723,7 +724,7 @@ impl App {
             }
             _ => return,
         };
-        let Some(approval) = self.approval.take() else {
+        let Some(approval) = self.approvals.pop_front() else {
             return;
         };
         let answer = match decision {
@@ -853,7 +854,7 @@ impl App {
             EventMsg::PlanUpdate(update) => self.push_cell(history_cell::new_plan_update(update)),
             EventMsg::UiRender(event) => self.on_ui_render(event),
             EventMsg::ExecApprovalRequest(request) => {
-                self.approval = Some(PendingApproval {
+                self.approvals.push_back(PendingApproval {
                     kind: ApprovalKind::Exec,
                     id: request.effective_approval_id(),
                     turn_id: request.turn_id.clone(),
@@ -862,7 +863,7 @@ impl App {
                 });
             }
             EventMsg::ApplyPatchApprovalRequest(request) => {
-                self.approval = Some(PendingApproval {
+                self.approvals.push_back(PendingApproval {
                     kind: ApprovalKind::Patch,
                     id: request.call_id.clone(),
                     turn_id: request.turn_id.clone(),
@@ -1211,7 +1212,7 @@ impl App {
         if let Some(note) = note {
             self.push_cell(history_cell::new_error_event(note.to_string()));
         }
-        self.approval = None;
+        self.approvals.clear();
         self.turn_started = None;
     }
 
@@ -1264,7 +1265,7 @@ impl App {
 
         let live = self.live_lines(width);
         let bottom = self.bottom_lines(width);
-        let composer_height = if self.approval.is_some() {
+        let composer_height = if !self.approvals.is_empty() {
             0
         } else {
             self.composer
@@ -1363,7 +1364,7 @@ impl App {
     /// The status line plus either the approval prompt or the key hints.
     fn bottom_lines(&self, width: u16) -> Vec<Line<'static>> {
         let mut lines = Vec::new();
-        if let Some(approval) = self.approval.as_ref() {
+        if let Some(approval) = self.approvals.front() {
             lines.push(Line::from(approval.question.clone().bold()));
             if let Some(reason) = approval.reason.as_ref() {
                 lines.push(Line::from(format!("  {reason}").dim()));
@@ -1376,6 +1377,11 @@ impl App {
                 "n".bold(),
                 " no".into(),
             ]));
+            if self.approvals.len() > 1 {
+                lines.push(Line::from(
+                    format!("  {} more waiting", self.approvals.len() - 1).dim(),
+                ));
+            }
             return lines;
         }
         lines.extend(self.popup_lines(width));

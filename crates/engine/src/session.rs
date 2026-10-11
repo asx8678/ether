@@ -63,6 +63,10 @@ struct SessionState {
     pending_requests: HashMap<String, PendingRequest>,
     /// What the model last saw of the world state; `None` until the first turn.
     world_state: Option<WorldStateSnapshot>,
+    /// The task running the current (or last) turn, awaited on shutdown.
+    turn_task: Option<tokio::task::JoinHandle<()>>,
+    /// Set by `Op::Shutdown`: no new turn starts.
+    shutting_down: bool,
 }
 
 /// A question the engine asked the client; dropping it answers "aborted".
@@ -258,7 +262,7 @@ impl Session {
     /// turn is already running.
     pub(crate) async fn begin_turn(&self) -> Option<(String, CancellationToken)> {
         let mut state = self.state.lock().await;
-        if state.active_turn.is_some() {
+        if state.active_turn.is_some() || state.shutting_down {
             return None;
         }
         state.turn_counter += 1;
@@ -272,15 +276,31 @@ impl Session {
         Some((turn_id, cancel))
     }
 
-    pub(crate) async fn end_turn(&self, turn_id: &str) {
+    /// Ends the turn and returns the input that arrived for it, for the next turn.
+    pub(crate) async fn end_turn_take_pending(&self, turn_id: &str) -> Vec<ResponseItem> {
         let mut state = self.state.lock().await;
-        if state
-            .active_turn
-            .as_ref()
-            .is_some_and(|turn| turn.turn_id == turn_id)
-        {
-            state.active_turn = None;
+        match state.active_turn.take() {
+            Some(turn) if turn.turn_id == turn_id => turn.pending_input,
+            other => {
+                state.active_turn = other;
+                Vec::new()
+            }
         }
+    }
+
+    /// Remembers the task running the current turn.
+    pub(crate) async fn set_turn_task(&self, task: tokio::task::JoinHandle<()>) {
+        self.state.lock().await.turn_task = Some(task);
+    }
+
+    /// Stops new turns, interrupts the running one, and returns its task to await.
+    pub(crate) async fn begin_shutdown(&self) -> Option<tokio::task::JoinHandle<()>> {
+        let mut state = self.state.lock().await;
+        state.shutting_down = true;
+        if let Some(turn) = state.active_turn.as_ref() {
+            turn.cancel.cancel();
+        }
+        state.turn_task.take()
     }
 
     /// Ends the turn unless input is waiting for it; returns that input instead. Doing both

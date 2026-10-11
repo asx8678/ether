@@ -10,8 +10,8 @@ use crate::rollout::Rollout;
 use crate::rollout::permission_profile;
 use crate::session::Session;
 use crate::session::SessionInit;
-use crate::turn::run_compact_turn;
-use crate::turn::run_turn;
+use crate::turn::spawn_compact_turn;
+use crate::turn::spawn_turn;
 use codex_protocol::ThreadId;
 use codex_protocol::error::CodexErr;
 use codex_protocol::models::ResponseInputItem;
@@ -37,6 +37,8 @@ use std::sync::Arc;
 use tokio::sync::mpsc;
 
 const EVENT_CHANNEL_CAPACITY: usize = 1024;
+/// How long `Op::Shutdown` waits for an interrupted turn to finish.
+const SHUTDOWN_GRACE: std::time::Duration = std::time::Duration::from_secs(10);
 
 /// Id used for events that do not belong to a turn.
 pub const SESSION_EVENT_ID: &str = "session";
@@ -208,6 +210,13 @@ async fn submission_loop(
     for msg in replay {
         sess.send_event_unrecorded(SESSION_EVENT_ID, msg).await;
     }
+    for message in sess.config.startup_warnings.clone() {
+        sess.send_event(
+            SESSION_EVENT_ID,
+            EventMsg::Warning(codex_protocol::protocol::WarningEvent { message }),
+        )
+        .await;
+    }
 
     while let Some(op) = rx_op.recv().await {
         match op {
@@ -232,16 +241,16 @@ async fn submission_loop(
                     send_error(&sess, format!("no pending user input request with id {id}")).await;
                 }
             }
-            Op::Compact => match sess.begin_turn().await {
-                Some((turn_id, cancel)) => {
-                    tokio::spawn(run_compact_turn(Arc::clone(&sess), turn_id, cancel));
+            Op::Compact => {
+                if !spawn_compact_turn(&sess).await {
+                    send_error(&sess, "cannot compact while a turn is running".to_string()).await;
                 }
-                None => {
-                    send_error(&sess, "cannot compact while a turn is running".to_string()).await
-                }
-            },
+            }
             Op::Shutdown => {
-                sess.interrupt().await;
+                // Let an interrupted turn finish its bookkeeping before the rollout closes.
+                if let Some(task) = sess.begin_shutdown().await {
+                    let _ = tokio::time::timeout(SHUTDOWN_GRACE, task).await;
+                }
                 break;
             }
             other => {
@@ -293,13 +302,12 @@ async fn submit_turn_input(
 }
 
 async fn start_turn(sess: &Arc<Session>, items: Vec<ResponseItem>) -> TurnInputSubmission {
-    let Some((turn_id, cancel)) = sess.begin_turn().await else {
-        return not_submitted(NotSubmittedReason::NotIdle);
-    };
-    tokio::spawn(run_turn(Arc::clone(sess), turn_id.clone(), items, cancel));
-    TurnInputSubmission::Started {
-        root_turn_id: turn_id.clone(),
-        turn_id,
+    match spawn_turn(sess, items).await {
+        Some(turn_id) => TurnInputSubmission::Started {
+            root_turn_id: turn_id.clone(),
+            turn_id,
+        },
+        None => not_submitted(NotSubmittedReason::NotIdle),
     }
 }
 
