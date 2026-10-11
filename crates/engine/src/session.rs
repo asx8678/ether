@@ -38,6 +38,8 @@ pub(crate) struct Session {
     pub(crate) tools: ToolRouter,
     /// Files changed by patches in the running turn.
     pub(crate) turn_diffs: Mutex<TurnDiffs>,
+    /// Files the user approved patches to for the rest of the session ("yes for this session").
+    pub(crate) patch_approved_paths: Mutex<std::collections::HashSet<std::path::PathBuf>>,
     /// Unified exec processes, approvals and exec-policy rules.
     pub(crate) exec: ExecManager,
     tx_event: mpsc::Sender<Event>,
@@ -98,6 +100,7 @@ impl Session {
             model,
             tools,
             turn_diffs: Mutex::new(TurnDiffs::default()),
+            patch_approved_paths: Mutex::new(std::collections::HashSet::new()),
             exec,
             tx_event,
             rollout: init.rollout,

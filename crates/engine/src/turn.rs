@@ -284,6 +284,7 @@ async fn record_user_input(sess: &Session, turn_id: &str, input: Vec<ResponseIte
 
 async fn turn_loop(sess: &Arc<Session>, turn_id: &str, cancel: &CancellationToken) -> TurnOutcome {
     let mut last_agent_message = None;
+    let mut compacted_for_overflow = false;
     loop {
         let pending = sess.take_pending_input().await;
         if !pending.is_empty() {
@@ -299,7 +300,15 @@ async fn turn_loop(sess: &Arc<Session>, turn_id: &str, cancel: &CancellationToke
         }
 
         match sample_with_retries(sess, turn_id, cancel).await {
+            // The provider says the request does not fit: compact once and try again.
+            Err(SamplingError::Api(ApiError::ContextWindowExceeded)) if !compacted_for_overflow => {
+                compacted_for_overflow = true;
+                if let Err(error) = run_compact(sess, turn_id, cancel).await {
+                    return compact_error_outcome(error);
+                }
+            }
             Ok(result) => {
+                compacted_for_overflow = false;
                 if result.last_agent_message.is_some() {
                     last_agent_message = result.last_agent_message;
                 }
@@ -331,7 +340,18 @@ async fn sample_with_retries(
         match run_sampling_request(sess, turn_id, cancel).await {
             Err(SamplingError::Api(error)) if retries < max_retries && is_retryable(&error) => {
                 retries += 1;
-                let delay = backoff(Duration::from_millis(200), retries);
+                // A rate limit's `Retry-After` (capped) wins over the exponential backoff.
+                let delay = match &error {
+                    ApiError::RateLimitExceeded {
+                        retry_after: Some(after),
+                        ..
+                    }
+                    | ApiError::Retryable {
+                        retry_after: Some(after),
+                        ..
+                    } => after.remaining_delay().min(MAX_RETRY_AFTER),
+                    _ => backoff(Duration::from_millis(200), retries),
+                };
                 sess.send_event(
                     turn_id,
                     EventMsg::StreamError(StreamErrorEvent {
@@ -351,12 +371,16 @@ async fn sample_with_retries(
     }
 }
 
+/// The longest `Retry-After` the engine waits before retrying.
+const MAX_RETRY_AFTER: Duration = Duration::from_secs(60);
+
 fn is_retryable(error: &ApiError) -> bool {
     matches!(
         error,
         ApiError::Stream(_)
             | ApiError::Transport(_)
             | ApiError::Retryable { .. }
+            | ApiError::RateLimitExceeded { .. }
             | ApiError::ServerOverloaded { .. }
     )
 }

@@ -186,12 +186,12 @@ async fn main() -> anyhow::Result<()> {
 
     // One reader for all of stdin: prompts and approval answers come from the same lines.
     let mut input = tokio::io::BufReader::new(tokio::io::stdin()).lines();
-    match cli.prompt {
+    match cli.prompt.filter(|prompt| !prompt.trim().is_empty()) {
         Some(prompt) => {
             submit_prompt(&engine, prompt)?;
             run_until_turn_ends(&mut engine, &mut printer, &mut input).await;
         }
-        None => interactive(&mut engine, &mut printer, &mut input).await?,
+        None => interactive(&mut engine, &mut printer, &mut input).await,
     }
     // Wait for `ShutdownComplete` so the session's rollout is written out before exiting.
     if engine.submit(Op::Shutdown).is_ok() {
@@ -201,26 +201,38 @@ async fn main() -> anyhow::Result<()> {
             }
         }
     }
+    if printer.turn_failed {
+        std::process::exit(1);
+    }
     Ok(())
 }
 
 type Input = tokio::io::Lines<tokio::io::BufReader<tokio::io::Stdin>>;
 
-async fn interactive(
-    engine: &mut Engine,
-    printer: &mut Printer,
-    input: &mut Input,
-) -> anyhow::Result<()> {
+/// Reads prompts until end of input, Ctrl-C at the prompt, or a read error; the caller then
+/// shuts the session down either way.
+async fn interactive(engine: &mut Engine, printer: &mut Printer, input: &mut Input) {
     loop {
         printer.prompt();
-        let Some(line) = input.next_line().await? else {
-            return Ok(());
+        let line = tokio::select! {
+            line = input.next_line() => line,
+            _ = tokio::signal::ctrl_c() => return,
+        };
+        let line = match line {
+            Ok(Some(line)) => line,
+            Ok(None) => return,
+            Err(err) => {
+                eprintln!("{}", printer.paint(&format!("cannot read input: {err}"), "31"));
+                return;
+            }
         };
         let line = line.trim();
         if line.is_empty() {
             continue;
         }
-        submit_prompt(engine, line.to_string())?;
+        if submit_prompt(engine, line.to_string()).is_err() {
+            return;
+        }
         run_until_turn_ends(engine, printer, input).await;
     }
 }
@@ -254,7 +266,12 @@ async fn run_until_turn_ends(engine: &mut Engine, printer: &mut Printer, input: 
     loop {
         let event = tokio::select! {
             event = engine.next_event() => event,
-            _ = tokio::signal::ctrl_c(), if !interrupted => {
+            _ = tokio::signal::ctrl_c() => {
+                if interrupted {
+                    // A second Ctrl-C while the turn is still stopping: give up waiting.
+                    eprintln!("{}", printer.paint("stopping without waiting", "33"));
+                    std::process::exit(130);
+                }
                 interrupted = true;
                 let _ = engine.submit(Op::Interrupt);
                 continue;
@@ -317,11 +334,19 @@ async fn ask_approval(
         printer.paint("  [y] yes  [a] yes for this session  [n] no > ", "1")
     );
     let _ = std::io::stderr().flush();
-    match input.next_line().await {
+    // Ctrl-C at the question stops the turn; any answer but yes declines this one call, as
+    // in the TUI.
+    let line = tokio::select! {
+        line = input.next_line() => line,
+        _ = tokio::signal::ctrl_c() => return ReviewDecision::Abort,
+    };
+    match line {
         Ok(Some(line)) => match line.trim() {
             "y" | "yes" => ReviewDecision::Approved,
             "a" => ReviewDecision::ApprovedForSession,
-            _ => ReviewDecision::Abort,
+            _ => ReviewDecision::Denied {
+                rejection: "declined by the user".to_string(),
+            },
         },
         _ => ReviewDecision::Abort,
     }
@@ -350,6 +375,8 @@ struct Printer {
     /// Kind of streamed output on the current line, so each stream starts on a fresh line.
     streaming: Option<Stream>,
     token_count: Option<TokenCountEvent>,
+    /// A turn failed or was interrupted: the process exits with status 1.
+    turn_failed: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -364,6 +391,7 @@ impl Printer {
             color: std::io::stderr().is_terminal(),
             streaming: None,
             token_count: None,
+            turn_failed: false,
         }
     }
 
@@ -496,14 +524,18 @@ impl Printer {
                 self.end_stream();
                 eprintln!("{}", self.paint(&format!("error: {}", error.message), "31"));
             }
-            EventMsg::TurnComplete(_) => {
+            EventMsg::TurnComplete(complete) => {
                 self.end_stream();
                 self.print_token_count();
+                if complete.error.is_some() {
+                    self.turn_failed = true;
+                }
                 return true;
             }
             EventMsg::TurnAborted(_) => {
                 self.end_stream();
                 eprintln!("{}", self.paint("interrupted", "33"));
+                self.turn_failed = true;
                 return true;
             }
             EventMsg::ShutdownComplete => return true,

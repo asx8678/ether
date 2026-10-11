@@ -31,6 +31,12 @@ pub(crate) struct HtmlFenceFilter {
     /// The current line, while it is incomplete.
     line: String,
     block: Option<OpenBlock>,
+    /// The start of the current line was already passed on as text, so the line cannot open a
+    /// fence (a ```` ```view ```` mentioned mid-sentence stays text).
+    mid_line: bool,
+    /// Inside another fenced code block (its fence character and length): fences in it are
+    /// text, for example a markdown example that shows a ```` ```view ```` block.
+    other_fence: Option<(char, usize)>,
 }
 
 #[derive(Debug)]
@@ -46,11 +52,19 @@ impl HtmlFenceFilter {
         self.line.push_str(delta);
         while let Some(end) = self.line.find('\n') {
             let line: String = self.line.drain(..=end).collect();
-            self.on_line(line, &mut out);
+            if std::mem::take(&mut self.mid_line) {
+                push_text(&mut out, line);
+            } else {
+                self.on_line(line, &mut out);
+            }
         }
         // Outside a block, an incomplete line is held only while it could still open a fence.
-        if self.block.is_none() && !self.line.is_empty() && !could_open(&self.line) {
+        if self.block.is_none()
+            && !self.line.is_empty()
+            && (self.mid_line || self.other_fence.is_some() || !could_open(&self.line))
+        {
             push_text(&mut out, std::mem::take(&mut self.line));
+            self.mid_line = true;
         }
         out
     }
@@ -60,6 +74,8 @@ impl HtmlFenceFilter {
     pub(crate) fn finish(&mut self) -> Vec<FenceOutput> {
         let mut out = Vec::new();
         let line = std::mem::take(&mut self.line);
+        self.mid_line = false;
+        self.other_fence = None;
         match self.block.take() {
             Some(mut block) if is_closer(&line) => {
                 block.source.push_str(&line);
@@ -76,6 +92,15 @@ impl HtmlFenceFilter {
     }
 
     fn on_line(&mut self, line: String, out: &mut Vec<FenceOutput>) {
+        if let Some((fence_char, length)) = self.other_fence {
+            if fence_marker(&line).is_some_and(|(c, n)| c == fence_char && n >= length)
+                && line.trim().chars().all(|c| c == fence_char)
+            {
+                self.other_fence = None;
+            }
+            push_text(out, line);
+            return;
+        }
         match self.block.as_mut() {
             None => match opener_kind(&line) {
                 Some(kind) => {
@@ -85,7 +110,11 @@ impl HtmlFenceFilter {
                         source: line,
                     });
                 }
-                None => push_text(out, line),
+                None => {
+                    // Any other fence starts a code block whose contents stay text.
+                    self.other_fence = fence_marker(&line);
+                    push_text(out, line);
+                }
             },
             Some(block) => {
                 block.source.push_str(&line);
@@ -134,6 +163,14 @@ fn opener_kind(line: &str) -> Option<BlockKind> {
             .is_some_and(|rest| rest.is_empty() || rest.starts_with([' ', '{']))
             .then_some(*kind)
     })
+}
+
+/// The fence character and length a line starts with (```` ``` ```` or `~~~`, three or more).
+fn fence_marker(line: &str) -> Option<(char, usize)> {
+    let trimmed = line.trim_start();
+    let first = trimmed.chars().next().filter(|c| *c == '`' || *c == '~')?;
+    let length = trimmed.chars().take_while(|c| *c == first).count();
+    (length >= 3).then_some((first, length))
 }
 
 fn is_closer(line: &str) -> bool {

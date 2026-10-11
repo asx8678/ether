@@ -21,6 +21,7 @@ use serde::Serialize;
 use serde_json::Value;
 use std::io::Write;
 use std::path::Path;
+use codex_utils_redacted_string::RedactedString;
 use std::sync::Arc;
 use std::sync::Mutex;
 
@@ -69,8 +70,25 @@ pub fn client_for_provider(
         name: info.name.clone(),
         message: err.to_string(),
     };
+    let unsupported = |message: &str| ClientBuildError::Provider {
+        name: info.name.clone(),
+        message: message.to_string(),
+    };
+    info.validate().map_err(|message| unsupported(&message))?;
+    if info.auth.is_some() || info.gateway_oauth.is_some() {
+        return Err(unsupported(
+            "`auth` commands and `gateway_oauth` are not supported by ether; use `env_key` or \
+             `experimental_bearer_token`",
+        ));
+    }
     let provider = info.to_api_provider(None).map_err(provider_error)?;
-    let api_key = info.api_key().map_err(provider_error)?;
+    let api_key = match info.api_key().map_err(provider_error)? {
+        Some(key) => Some(key),
+        None => info
+            .experimental_bearer_token
+            .clone()
+            .map(RedactedString::into_inner),
+    };
     let transport = ReqwestTransport::new(reqwest::Client::new());
     Ok(match info.wire_api {
         WireApi::Responses => Arc::new(ResponsesModelClient {

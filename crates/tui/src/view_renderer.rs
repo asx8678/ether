@@ -28,6 +28,9 @@ use serde_json::Value;
 use serde_json::json;
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::atomic::AtomicU64;
+use std::sync::atomic::Ordering;
 use std::sync::mpsc;
 use std::thread::JoinHandle;
 use std::time::Duration;
@@ -85,6 +88,8 @@ struct Job {
 pub(crate) struct ViewRenderer {
     jobs: Option<mpsc::Sender<Job>>,
     thread: Option<JoinHandle<()>>,
+    /// Blocks numbered below this are skipped (a previous session's); `u64::MAX` on shutdown.
+    skip_below: Arc<AtomicU64>,
 }
 
 impl ViewRenderer {
@@ -96,6 +101,8 @@ impl ViewRenderer {
         results: UnboundedSender<ViewResult>,
     ) -> Self {
         let (jobs, queue) = mpsc::channel::<Job>();
+        let skip_below = Arc::new(AtomicU64::new(0));
+        let skip = Arc::clone(&skip_below);
         let thread = std::thread::Builder::new()
             .name("ether-views".to_string())
             .spawn(move || {
@@ -105,6 +112,9 @@ impl ViewRenderer {
                     let _ = open.diagram_session();
                 }
                 for job in queue {
+                    if job.seq < skip.load(Ordering::Relaxed) {
+                        continue;
+                    }
                     if renderer.is_none() {
                         renderer = ViewPage::open(&chrome, &style).ok();
                     }
@@ -123,7 +133,13 @@ impl ViewRenderer {
         Self {
             jobs: Some(jobs),
             thread,
+            skip_below,
         }
+    }
+
+    /// Skips queued blocks numbered below `seq` (they belong to a session that was left).
+    pub(crate) fn skip_below(&self, seq: u64) {
+        self.skip_below.fetch_max(seq, Ordering::Relaxed);
     }
 
     /// Queues a block; its result arrives on the results channel with `seq`.
@@ -141,6 +157,8 @@ impl ViewRenderer {
 
     /// Stops the thread and Chrome, waiting for the block being drawn, if any.
     pub(crate) fn shutdown(mut self) {
+        // Queued blocks are not drawn any more; only the one being drawn is waited for.
+        self.skip_below.store(u64::MAX, Ordering::Relaxed);
         self.jobs.take();
         if let Some(thread) = self.thread.take() {
             let _ = thread.join();
@@ -209,7 +227,7 @@ impl ViewPage {
         // is captured whole and scaled down instead of being clipped.
         self.set_metrics(session, css_width + css_width / 2, scale)?;
         let path = self.browser.profile().join("view.html");
-        self.load(session, &path, &page_html(html, css_width, &self.style))?;
+        self.load(session, &path, &page_html(&strip_meta_refresh(html), css_width, &self.style))?;
         let evaluated = self
             .browser
             .call(
@@ -222,7 +240,13 @@ impl ViewPage {
         if let Some(exception) = evaluated.get("exceptionDetails") {
             return Err(format!("view kit: {}", exception["exception"]["description"]));
         }
-        Ok(evaluated["result"]["value"].clone())
+        let drawn = evaluated["result"]["value"].clone();
+        // The CSP does not cover navigation: a page that left view.html is not captured.
+        let expected = url::Url::from_file_path(&path).map_err(|()| "bad view path".to_string())?;
+        if drawn["href"].as_str() != Some(expected.as_str()) {
+            return Err("the view tried to navigate away".to_string());
+        }
+        Ok(drawn)
     }
 
     /// Draws Mermaid source in the diagram tab.
@@ -383,6 +407,18 @@ impl ViewPage {
             rows,
             issues,
         })
+    }
+}
+
+/// Removes `<meta http-equiv="refresh">`, the one way static HTML can navigate the page (to a
+/// local file without the CSP, for example).
+fn strip_meta_refresh(html: &str) -> std::borrow::Cow<'_, str> {
+    static PATTERN: std::sync::OnceLock<Option<regex_lite::Regex>> = std::sync::OnceLock::new();
+    match PATTERN
+        .get_or_init(|| regex_lite::Regex::new(r#"(?i)<meta[^>]*http-equiv\s*=\s*["']?\s*refresh[^>]*>"#).ok())
+    {
+        Some(pattern) => pattern.replace_all(html, ""),
+        None => std::borrow::Cow::Borrowed(html),
     }
 }
 

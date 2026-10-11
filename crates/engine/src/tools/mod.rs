@@ -15,6 +15,7 @@ mod view_image;
 
 use crate::config::EngineConfig;
 use crate::session::Session;
+use codex_model_provider_info::WireApi;
 use codex_protocol::models::FunctionCallOutputPayload;
 use codex_protocol::models::ResponseItem;
 use codex_tools::ToolSpec;
@@ -74,10 +75,16 @@ pub(crate) fn built_in_handlers(config: &EngineConfig) -> Vec<Arc<dyn ToolHandle
         Arc::new(unified_exec::WriteStdinHandler),
         Arc::new(plan::PlanHandler),
         Arc::new(apply_patch::ApplyPatchHandler::new(
-            apply_patch::ApplyPatchToolType::for_model(&config.model.slug),
+            apply_patch::ApplyPatchToolType::for_model(
+                &config.model.slug,
+                config.model_provider.wire_api,
+            ),
         )),
-        Arc::new(view_image::ViewImageHandler),
     ];
+    // Chat Completions tool results carry only text, so an image result would arrive empty.
+    if config.model_provider.wire_api == WireApi::Responses {
+        handlers.push(Arc::new(view_image::ViewImageHandler));
+    }
     if config.user_input_tool {
         handlers.push(Arc::new(request_user_input::RequestUserInputHandler));
     }

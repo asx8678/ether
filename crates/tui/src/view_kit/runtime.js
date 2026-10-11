@@ -267,5 +267,5 @@
     const text = [...node.childNodes].some((child) => child.nodeType === 3 && child.textContent.trim());
     if (text && num(getComputedStyle(node).fontSize) < 10) { issues.push('some text is smaller than 10px'); break; }
   }
-  return { width: Math.ceil(right) + 2, height: Math.ceil(bottom) + 2, issues };
+  return { width: Math.ceil(right) + 2, height: Math.ceil(bottom) + 2, issues, href: location.href };
 })()

@@ -63,24 +63,54 @@ impl ResponsesClient {
     }
 }
 
-/// Turns an HTTP error status into [`ApiError::Api`] with the server's error message.
+/// Turns an HTTP error status into an [`ApiError`] with the server's error message: 429 is a
+/// rate limit (retried, after `Retry-After` when given), a request too large for the context
+/// window is [`ApiError::ContextWindowExceeded`] (the engine compacts and retries), anything
+/// else is [`ApiError::Api`].
 pub(crate) fn map_transport_error(error: TransportError) -> ApiError {
     match error {
-        TransportError::Http { status, body, .. } => {
-            let message = body
+        TransportError::Http {
+            status,
+            body,
+            retry_after,
+            ..
+        } => {
+            let error_json = body
                 .as_deref()
                 .and_then(|body| serde_json::from_str::<serde_json::Value>(body).ok())
-                .and_then(|value| {
-                    value
-                        .get("error")
-                        .and_then(|error| error.get("message"))
-                        .and_then(serde_json::Value::as_str)
-                        .map(str::to_string)
-                })
-                .or(body)
-                .unwrap_or_default();
+                .and_then(|value| value.get("error").cloned());
+            let field = |name: &str| {
+                error_json
+                    .as_ref()
+                    .and_then(|error| error.get(name))
+                    .and_then(serde_json::Value::as_str)
+                    .map(str::to_string)
+            };
+            let code = field("code").unwrap_or_default();
+            let message = field("message").or(body).unwrap_or_default();
+            if status.as_u16() == 429 {
+                return ApiError::RateLimitExceeded {
+                    message,
+                    retry_after,
+                };
+            }
+            if matches!(status.as_u16(), 400 | 413) && is_context_overflow(&code, &message) {
+                return ApiError::ContextWindowExceeded;
+            }
             ApiError::Api { status, message }
         }
         error => ApiError::Transport(error),
     }
+}
+
+/// Whether an error says the request does not fit the model's context window (OpenAI's
+/// `context_length_exceeded` code, or the usual wordings of OpenAI-compatible servers).
+fn is_context_overflow(code: &str, message: &str) -> bool {
+    let message = message.to_ascii_lowercase();
+    code == "context_length_exceeded"
+        || message.contains("context length")
+        || message.contains("context_length")
+        || message.contains("maximum context")
+        || message.contains("context window")
+        || message.contains("prompt is too long")
 }

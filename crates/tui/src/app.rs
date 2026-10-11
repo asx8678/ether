@@ -211,9 +211,11 @@ impl ImageSupport {
     }
 }
 
-/// Answer output waiting for an earlier view to finish rendering, kept in order.
+/// History waiting for an earlier view to finish rendering, kept in order.
 enum Pending {
     Text(String),
+    /// Any other history cell (a command, a note, a replayed prompt).
+    Cell(Box<dyn HistoryCell>),
     View {
         seq: u64,
         kind: BlockKind,
@@ -365,6 +367,10 @@ impl App {
 
     /// Resets the per-session state after `/new` or `/resume`.
     fn on_session_switched(&mut self) {
+        // Views queued for the previous session are not drawn.
+        if let Some(renderer) = &self.renderer {
+            renderer.skip_below(self.next_view);
+        }
         self.token_info = None;
         self.turn_started = None;
         self.approvals.clear();
@@ -400,7 +406,18 @@ impl App {
                 ));
             }
             AppEvent::Sessions(Ok(found)) => {
-                if let Some(Popup::Sessions { entries, .. }) = self.popup.as_mut() {
+                // The open session is not offered: resuming it would add a second writer.
+                let found: Vec<SessionEntry> = found
+                    .into_iter()
+                    .filter(|entry| Some(&entry.path) != self.rollout_path.as_ref())
+                    .collect();
+                if found.is_empty() {
+                    self.popup = None;
+                    self.push_cell(history_cell::new_info_event(
+                        "no other sessions recorded in this directory".to_string(),
+                        None,
+                    ));
+                } else if let Some(Popup::Sessions { entries, .. }) = self.popup.as_mut() {
                     *entries = Some(found);
                 }
             }
@@ -875,10 +892,16 @@ impl App {
             EventMsg::Warning(warning) => {
                 self.push_cell(history_cell::new_warning_event(warning.message))
             }
-            EventMsg::StreamError(error) => self.push_cell(history_cell::new_info_event(
-                error.message,
-                error.additional_details,
-            )),
+            EventMsg::StreamError(error) => {
+                // The retried response starts over: release what the fence filter holds.
+                if self.answer_open {
+                    self.end_answer();
+                }
+                self.push_cell(history_cell::new_info_event(
+                    error.message,
+                    error.additional_details,
+                ));
+            }
             EventMsg::Error(error) => self.push_cell(history_cell::new_error_event(error.message)),
             EventMsg::TurnComplete(_) => self.end_turn(None),
             EventMsg::TurnAborted(_) => self.end_turn(Some("interrupted")),
@@ -959,8 +982,8 @@ impl App {
 
     /// Moves the live views into history, ahead of whatever is written next.
     fn commit_views(&mut self) {
-        for view in self.ui_views.drain(..) {
-            self.pending_history.push(Box::new(view));
+        for view in std::mem::take(&mut self.ui_views) {
+            self.emit(Box::new(view));
         }
     }
 
@@ -1030,6 +1053,10 @@ impl App {
             }
             match self.pending.pop_front() {
                 Some(Pending::Text(text)) => self.on_text_delta(&text),
+                Some(Pending::Cell(cell)) => {
+                    self.finish_stream();
+                    self.pending_history.push(cell);
+                }
                 Some(Pending::View {
                     kind,
                     source,
@@ -1057,6 +1084,10 @@ impl App {
         for item in held {
             match item {
                 Pending::Text(text) => self.on_text_delta(&text),
+                Pending::Cell(cell) => {
+                    self.finish_stream();
+                    self.pending_history.push(cell);
+                }
                 Pending::View {
                     kind,
                     source,
@@ -1080,13 +1111,15 @@ impl App {
                     image.cols,
                     image.rows,
                 ));
-                self.push_cell(ImageCell::new(id, &image));
+                self.finish_stream();
+                self.pending_history.push(Box::new(ImageCell::new(id, &image)));
                 if !image.issues.is_empty() {
                     // The view kit's checks, for the user (and for a later repair round).
-                    self.push_cell(history_cell::new_info_event(
-                        format!("view check: {}", image.issues.join("; ")),
-                        None,
-                    ));
+                    self.pending_history
+                        .push(Box::new(history_cell::new_info_event(
+                            format!("view check: {}", image.issues.join("; ")),
+                            None,
+                        )));
                 }
             }
             Err(err) => {
@@ -1094,9 +1127,11 @@ impl App {
                     BlockKind::View => "view",
                     BlockKind::Mermaid => "diagram",
                 };
-                self.push_cell(history_cell::new_warning_event(format!(
-                    "{what} not drawn ({err}); showing its source"
-                )));
+                self.finish_stream();
+                self.pending_history
+                    .push(Box::new(history_cell::new_warning_event(format!(
+                        "{what} not drawn ({err}); showing its source"
+                    ))));
                 self.on_text_delta(&source);
                 self.finish_stream();
             }
@@ -1196,10 +1231,14 @@ impl App {
             end.duration,
         );
         self.commit_views();
-        self.pending_history.push(Box::new(cell));
+        self.emit(Box::new(cell));
     }
 
     fn end_turn(&mut self, note: Option<&str>) {
+        // A failed turn can end mid-answer: release what the fence filter holds.
+        if self.answer_open {
+            self.end_answer();
+        }
         if note.is_some() {
             // An interrupted answer may hold text behind a view that never arrives.
             self.abandon_views();
@@ -1223,16 +1262,15 @@ impl App {
         let mut cells: Vec<(String, ExecCell)> = self.exec_cells.drain().collect();
         cells.sort_by(|a, b| a.0.cmp(&b.0));
         for (_, cell) in cells {
-            self.pending_history.push(Box::new(cell));
+            self.emit(Box::new(cell));
         }
         for (_, text) in std::mem::take(&mut self.reasoning) {
             if !text.trim().is_empty() {
                 let (header, content) = history_cell::split_reasoning_summary_parts(&[text]);
                 let cwd = self.cwd.clone();
-                self.pending_history
-                    .push(Box::new(history_cell::ReasoningSummaryCell::new(
-                        header, content, &cwd, /*transcript_only*/ false,
-                    )));
+                self.emit(Box::new(history_cell::ReasoningSummaryCell::new(
+                    header, content, &cwd, /*transcript_only*/ false,
+                )));
             }
         }
     }
@@ -1241,7 +1279,17 @@ impl App {
         // History is ordered: finish the streamed answer first so the cell lands after it.
         self.finish_stream();
         self.commit_views();
-        self.pending_history.push(Box::new(cell));
+        self.emit(Box::new(cell));
+    }
+
+    /// Writes a cell to history, or queues it behind a view that is still rendering so the
+    /// order of the conversation is kept (always the case when a resumed session replays).
+    fn emit(&mut self, cell: Box<dyn HistoryCell>) {
+        if self.pending.is_empty() {
+            self.pending_history.push(cell);
+        } else {
+            self.pending.push_back(Pending::Cell(cell));
+        }
     }
 
     // ---- drawing --------------------------------------------------------------------------
@@ -1258,8 +1306,11 @@ impl App {
             if lines.is_empty() {
                 continue;
             }
-            // A blank row between history cells, as in Codex.
-            lines.insert(0, HyperlinkLine::from(""));
+            // A blank row between history cells, as in Codex (not between the chunks of one
+            // streamed answer).
+            if !cell.is_stream_continuation() {
+                lines.insert(0, HyperlinkLine::from(""));
+            }
             tui.insert_history(lines);
         }
 
@@ -1272,11 +1323,19 @@ impl App {
                 .desired_height(width.saturating_sub(COMPOSER_PREFIX_WIDTH))
                 .clamp(1, 8)
         };
+        // Wrapped height, so a long approval question keeps its `y/a/n` line on screen.
+        let bottom_height = u16::try_from(
+            Paragraph::new(bottom.clone())
+                .wrap(Wrap { trim: false })
+                .line_count(width),
+        )
+        .unwrap_or(u16::MAX)
+        .min(screen.height.saturating_sub(composer_height + 1));
         let max_live = screen
             .height
-            .saturating_sub(composer_height + bottom.len() as u16 + 2);
+            .saturating_sub(composer_height + bottom_height + 2);
         let live_height = (live.len() as u16).min(max_live);
-        let height = live_height + bottom.len() as u16 + composer_height + 1;
+        let height = live_height + bottom_height + composer_height + 1;
 
         let composer = &self.composer;
         let composer_state = &mut self.composer_state;
@@ -1292,7 +1351,6 @@ impl App {
             }
             // Blank spacer row.
             y += 1;
-            let bottom_height = bottom.len() as u16;
             Paragraph::new(bottom.clone())
                 .wrap(Wrap { trim: false })
                 .render(Rect::new(area.x, y, area.width, bottom_height), buf);

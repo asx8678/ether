@@ -42,8 +42,8 @@ use std::collections::BTreeMap;
 use std::time::Duration;
 use tokio::sync::mpsc;
 use tokio::time::timeout;
-use tracing::debug;
 use tracing::trace;
+use tracing::warn;
 
 /// Builds the Chat Completions request body for `prompt`.
 pub fn build_chat_request(prompt: &Prompt) -> Value {
@@ -75,8 +75,17 @@ pub fn build_chat_request(prompt: &Prompt) -> Value {
     Value::Object(body)
 }
 
+/// Appended to an answer the server cut off at the output limit.
+const TRUNCATION_NOTE: &str = "\n\n[cut off at the model's output limit]";
+
 /// History to chat messages. Consecutive model output items (reasoning, assistant text, tool
 /// calls) become one `assistant` message.
+///
+/// A response whose stream failed can leave its reasoning in history (the reasoning item is
+/// done once the answer text starts). So a later reasoning item replaces one not yet followed
+/// by text or tool calls, and an assistant message with nothing but reasoning is not sent:
+/// a retried request then matches the request before it, and garbled reasoning is never
+/// replayed.
 fn chat_messages(prompt: &Prompt) -> Vec<Value> {
     let mut messages = Vec::new();
     if !prompt.instructions.is_empty() {
@@ -94,10 +103,12 @@ fn chat_messages(prompt: &Prompt) -> Vec<Value> {
                         | ReasoningItemContent::Text { text } => text.as_str(),
                     })
                     .collect();
-                assistant
-                    .get_or_insert_with(AssistantMessage::default)
-                    .reasoning
-                    .push_str(&text);
+                let message = assistant.get_or_insert_with(AssistantMessage::default);
+                if message.content.is_empty() && message.tool_calls.is_empty() {
+                    message.reasoning = text;
+                } else {
+                    message.reasoning.push_str(&text);
+                }
             }
             ResponseItem::Message { role, content, .. } if role == "assistant" => {
                 let text: String = content
@@ -136,7 +147,7 @@ fn chat_messages(prompt: &Prompt) -> Vec<Value> {
                     .push(tool_call(call_id, name, &arguments));
             }
             other => {
-                if let Some(message) = assistant.take() {
+                if let Some(message) = assistant.take().filter(AssistantMessage::has_output) {
                     messages.push(message.into_json());
                 }
                 if let Some(message) = input_message(other) {
@@ -145,7 +156,7 @@ fn chat_messages(prompt: &Prompt) -> Vec<Value> {
             }
         }
     }
-    if let Some(message) = assistant.take() {
+    if let Some(message) = assistant.take().filter(AssistantMessage::has_output) {
         messages.push(message.into_json());
     }
     messages
@@ -156,6 +167,13 @@ struct AssistantMessage {
     reasoning: String,
     content: String,
     tool_calls: Vec<Value>,
+}
+
+impl AssistantMessage {
+    /// Whether the message has text or tool calls (reasoning alone is left out).
+    fn has_output(&self) -> bool {
+        !self.content.is_empty() || !self.tool_calls.is_empty()
+    }
 }
 
 impl AssistantMessage {
@@ -343,76 +361,86 @@ impl ModelClient for ChatCompletionsModelClient {
 
 #[derive(Debug, Deserialize)]
 struct ChatChunk {
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_default")]
     id: Option<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_default")]
     choices: Vec<ChatChoice>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_default")]
     usage: Option<ChatUsage>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_default")]
     error: Option<Value>,
 }
 
 #[derive(Debug, Deserialize)]
 struct ChatChoice {
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_default")]
     delta: Option<ChatDelta>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_default")]
     finish_reason: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 struct ChatDelta {
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_default")]
     content: Option<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_default")]
     reasoning_content: Option<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_default")]
     tool_calls: Vec<ToolCallDelta>,
 }
 
 #[derive(Debug, Deserialize)]
 struct ToolCallDelta {
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_default")]
     index: Option<usize>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_default")]
     id: Option<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_default")]
     function: Option<FunctionDelta>,
 }
 
 #[derive(Debug, Deserialize)]
 struct FunctionDelta {
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_default")]
     name: Option<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_default")]
     arguments: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 struct ChatUsage {
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_default")]
     prompt_tokens: i64,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_default")]
     completion_tokens: i64,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_default")]
     total_tokens: i64,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_default")]
     prompt_tokens_details: Option<PromptTokensDetails>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_default")]
     completion_tokens_details: Option<CompletionTokensDetails>,
 }
 
 #[derive(Debug, Deserialize)]
 struct PromptTokensDetails {
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_default")]
     cached_tokens: i64,
 }
 
 #[derive(Debug, Deserialize)]
 struct CompletionTokensDetails {
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_default")]
     reasoning_tokens: i64,
+}
+
+/// Reads `null` like a missing field: some servers send `"tool_calls": null` or
+/// `"cached_tokens": null`, which would otherwise fail the whole chunk.
+fn null_as_default<'de, D, T>(deserializer: D) -> Result<T, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Default + Deserialize<'de>,
+{
+    Ok(Option::<T>::deserialize(deserializer)?.unwrap_or_default())
 }
 
 impl From<ChatUsage> for TokenUsage {
@@ -454,6 +482,8 @@ pub(crate) struct ChatStreamState {
     calls: BTreeMap<usize, PendingCall>,
     usage: Option<TokenUsage>,
     item_counter: usize,
+    /// The `finish_reason` the server sent, if any.
+    finish_reason: Option<String>,
 }
 
 impl ChatStreamState {
@@ -524,7 +554,10 @@ impl ChatStreamState {
                     pending.id = id;
                 }
                 if let Some(function) = call.function {
-                    if let Some(name) = function.name {
+                    // Some servers repeat the whole name on every delta.
+                    if let Some(name) = function.name
+                        && name != pending.name
+                    {
                         pending.name.push_str(&name);
                     }
                     if let Some(arguments) = function.arguments {
@@ -532,11 +565,12 @@ impl ChatStreamState {
                     }
                 }
             }
-            if let Some(reason) = choice.finish_reason.as_deref() {
+            if let Some(reason) = choice.finish_reason {
                 trace!("chat finish_reason: {reason}");
                 if reason == "content_filter" {
                     return Err(ApiError::ContentFilter);
                 }
+                self.finish_reason = Some(reason);
             }
         }
         Ok(events)
@@ -550,8 +584,18 @@ impl ChatStreamState {
     }
 
     /// Events that close the response: open items, tool calls in index order, completion.
-    fn finish(&mut self) -> Vec<ResponseEvent> {
+    /// A response cut off at the output limit (`finish_reason: length`) is an error when it was
+    /// writing a tool call (its arguments are incomplete); a cut-off answer is kept with a note.
+    fn finish(&mut self) -> Result<Vec<ResponseEvent>, ApiError> {
+        let truncated = self.finish_reason.as_deref() == Some("length");
+        if truncated && !self.calls.is_empty() {
+            return Err(ApiError::OutputTruncated);
+        }
         let mut events = self.finish_reasoning();
+        if truncated && let Some((_, text)) = self.text.as_mut() {
+            text.push_str(TRUNCATION_NOTE);
+            events.push(ResponseEvent::OutputTextDelta(TRUNCATION_NOTE.to_string()));
+        }
         if let Some((id, text)) = self.text.take() {
             events.push(ResponseEvent::OutputItemDone(message_item(&id, &text)));
         }
@@ -579,7 +623,7 @@ impl ChatStreamState {
             usage_metadata: None,
             end_turn: None,
         });
-        events
+        Ok(events)
     }
 }
 
@@ -636,8 +680,19 @@ async fn process_chat_sse(
                     .await;
                 return;
             }
-            // Some servers end the stream without `[DONE]`; treat a clean end as completion.
-            Ok(None) => break,
+            // Some servers end the stream without `[DONE]`: a clean end is a completion if the
+            // server said why it finished; otherwise the response is incomplete.
+            Ok(None) => {
+                if state.finish_reason.is_none() {
+                    let _ = tx_event
+                        .send(Err(ApiError::Stream(
+                            "chat stream ended before the response finished".to_string(),
+                        )))
+                        .await;
+                    return;
+                }
+                break;
+            }
             Err(_) => {
                 let _ = tx_event
                     .send(Err(ApiError::Stream("idle timeout waiting for SSE".into())))
@@ -652,7 +707,7 @@ async fn process_chat_sse(
         let chunk: ChatChunk = match serde_json::from_str(&sse.data) {
             Ok(chunk) => chunk,
             Err(error) => {
-                debug!("failed to parse chat chunk: {error}");
+                warn!("skipping a chat chunk that does not parse: {error}");
                 continue;
             }
         };
@@ -678,9 +733,16 @@ async fn process_chat_sse(
             .await;
         return;
     }
-    for event in state.finish() {
-        if tx_event.send(Ok(event)).await.is_err() {
-            return;
+    match state.finish() {
+        Ok(events) => {
+            for event in events {
+                if tx_event.send(Ok(event)).await.is_err() {
+                    return;
+                }
+            }
+        }
+        Err(error) => {
+            let _ = tx_event.send(Err(error)).await;
         }
     }
 }

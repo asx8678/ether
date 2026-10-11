@@ -3,6 +3,7 @@
 
 use crate::safety::PatchPermissions;
 use crate::safety::SafetyCheck;
+use codex_model_provider_info::WireApi;
 use crate::safety::assess_patch_safety;
 use crate::session::Session;
 use crate::tools::ToolError;
@@ -86,8 +87,9 @@ pub(crate) struct ApplyPatchHandler {
 impl ApplyPatchToolType {
     /// Freeform for GPT-5 models, which Codex serves the freeform tool; a JSON function for
     /// everything else (GLM and other OpenAI-compatible providers).
-    pub(crate) fn for_model(slug: &str) -> Self {
-        if slug.starts_with("gpt-5") {
+    pub(crate) fn for_model(slug: &str, wire_api: WireApi) -> Self {
+        // Chat Completions has function tools only.
+        if slug.starts_with("gpt-5") && wire_api == WireApi::Responses {
             Self::Freeform
         } else {
             Self::Function
@@ -208,7 +210,11 @@ async fn execute_verified_patch(
             ToolError::RespondToModel(format!("failed to check patch permissions: {error}"))
         })? {
         SafetyCheck::AutoApprove => true,
-        SafetyCheck::AskUser => false,
+        // Files the user already approved for the session need no new question.
+        SafetyCheck::AskUser => {
+            let approved = sess.patch_approved_paths.lock().await;
+            patch_paths(&action).iter().all(|path| approved.contains(path))
+        }
         SafetyCheck::Reject { reason } => {
             return Err(ToolError::RespondToModel(format!(
                 "patch rejected: {reason}"
@@ -216,7 +222,7 @@ async fn execute_verified_patch(
         }
     };
     let changes = convert_apply_patch_to_protocol(&action);
-    if !auto_approved && !request_patch_approval(sess, turn_id, call_id, &changes).await {
+    if !auto_approved && !request_patch_approval(sess, turn_id, call_id, &action, &changes).await {
         emit_patch_end(
             sess,
             turn_id,
@@ -283,12 +289,30 @@ async fn execute_verified_patch(
     Ok(output)
 }
 
+/// The files a patch writes: changed paths and move destinations.
+fn patch_paths(action: &ApplyPatchAction) -> Vec<PathBuf> {
+    convert_apply_patch_to_protocol(action)
+        .into_iter()
+        .flat_map(|(path, change)| {
+            let moved = match change {
+                FileChange::Update {
+                    move_path: Some(to),
+                    ..
+                } => Some(to),
+                _ => None,
+            };
+            std::iter::once(path).chain(moved)
+        })
+        .collect()
+}
+
 /// Asks the client to approve the patch. Returns whether it may be applied; a dropped request
-/// (the turn ended) counts as a rejection.
+/// (the turn ended) counts as a rejection. "Yes for this session" remembers the patch's files.
 async fn request_patch_approval(
     sess: &Session,
     turn_id: &str,
     call_id: &str,
+    action: &ApplyPatchAction,
     changes: &HashMap<PathBuf, FileChange>,
 ) -> bool {
     let decision = sess.request_approval(call_id.to_string()).await;
@@ -305,11 +329,14 @@ async fn request_patch_approval(
     )
     .await;
     match decision.await {
-        Ok(
-            ReviewDecision::Approved
-            | ReviewDecision::ApprovedForSession
-            | ReviewDecision::ApprovedExecpolicyAmendment { .. },
-        ) => true,
+        Ok(ReviewDecision::ApprovedForSession) => {
+            sess.patch_approved_paths
+                .lock()
+                .await
+                .extend(patch_paths(action));
+            true
+        }
+        Ok(ReviewDecision::Approved | ReviewDecision::ApprovedExecpolicyAmendment { .. }) => true,
         Ok(_) | Err(_) => false,
     }
 }

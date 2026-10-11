@@ -1,4 +1,4 @@
-// Modified from OpenAI Codex (codex-rs/codex-api/src/error.rs @ 806d973): `RetryAfter` comes from codex-protocol; the rate-limit header error is removed.
+// Modified from OpenAI Codex (codex-rs/codex-api/src/error.rs @ 806d973): `RetryAfter` comes from codex-protocol; the rate-limit header error is removed; `OutputTruncated` added (ether).
 use codex_client::TransportError;
 use codex_protocol::http_error::RetryAfter;
 use codex_protocol::protocol::MisalignmentErrorDetails;
@@ -18,6 +18,9 @@ pub enum ApiError {
     ContentFilter,
     #[error("context window exceeded")]
     ContextWindowExceeded,
+    /// The response was cut off at the model's output limit while writing a tool call (ether).
+    #[error("the response was cut off at the model's output limit while writing a tool call")]
+    OutputTruncated,
     #[error("quota exceeded")]
     QuotaExceeded,
     #[error("usage not included")]
