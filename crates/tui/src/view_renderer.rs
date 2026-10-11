@@ -122,7 +122,10 @@ impl ViewRenderer {
                         Some(open) => open.render(&job, cell),
                         None => Err("cannot start Chrome".to_string()),
                     };
-                    if result.as_ref().is_err_and(|err| err.starts_with("browser:")) {
+                    if result
+                        .as_ref()
+                        .is_err_and(|err| err.starts_with("browser:"))
+                    {
                         // The browser itself failed: start a fresh one for the next block.
                         renderer = None;
                     }
@@ -205,11 +208,17 @@ impl ViewPage {
         let (session, drawn) = match job.kind {
             BlockKind::View => {
                 let session = self.view_session.clone();
-                (session.clone(), self.draw_view(&session, &job.body, css_width, scale)?)
+                (
+                    session.clone(),
+                    self.draw_view(&session, &job.body, css_width, scale)?,
+                )
             }
             BlockKind::Mermaid => {
                 let session = self.diagram_session()?;
-                (session.clone(), self.draw_diagram(&session, &job.body, css_width, scale)?)
+                (
+                    session.clone(),
+                    self.draw_diagram(&session, &job.body, css_width, scale)?,
+                )
             }
         };
         self.capture(&session, &drawn, job.max_cols, cell, scale)
@@ -227,7 +236,11 @@ impl ViewPage {
         // is captured whole and scaled down instead of being clipped.
         self.set_metrics(session, css_width + css_width / 2, scale)?;
         let path = self.browser.profile().join("view.html");
-        self.load(session, &path, &page_html(&strip_meta_refresh(html), css_width, &self.style))?;
+        self.load(
+            session,
+            &path,
+            &page_html(&strip_meta_refresh(html), css_width, &self.style),
+        )?;
         let evaluated = self
             .browser
             .call(
@@ -238,7 +251,10 @@ impl ViewPage {
             )
             .map_err(browser_error)?;
         if let Some(exception) = evaluated.get("exceptionDetails") {
-            return Err(format!("view kit: {}", exception["exception"]["description"]));
+            return Err(format!(
+                "view kit: {}",
+                exception["exception"]["description"]
+            ));
         }
         let drawn = evaluated["result"]["value"].clone();
         // The CSP does not cover navigation: a page that left view.html is not captured.
@@ -344,7 +360,12 @@ impl ViewPage {
         self.browser.clear_events();
         let navigated = self
             .browser
-            .call("Page.navigate", json!({ "url": url.as_str() }), Some(session), STEP_TIMEOUT)
+            .call(
+                "Page.navigate",
+                json!({ "url": url.as_str() }),
+                Some(session),
+                STEP_TIMEOUT,
+            )
             .map_err(browser_error)?;
         if let Some(error) = navigated.get("errorText").and_then(Value::as_str) {
             return Err(format!("load page: {error}"));
@@ -414,9 +435,9 @@ impl ViewPage {
 /// local file without the CSP, for example).
 fn strip_meta_refresh(html: &str) -> std::borrow::Cow<'_, str> {
     static PATTERN: std::sync::OnceLock<Option<regex_lite::Regex>> = std::sync::OnceLock::new();
-    match PATTERN
-        .get_or_init(|| regex_lite::Regex::new(r#"(?i)<meta[^>]*http-equiv\s*=\s*["']?\s*refresh[^>]*>"#).ok())
-    {
+    match PATTERN.get_or_init(|| {
+        regex_lite::Regex::new(r#"(?i)<meta[^>]*http-equiv\s*=\s*["']?\s*refresh[^>]*>"#).ok()
+    }) {
         Some(pattern) => pattern.replace_all(html, ""),
         None => std::borrow::Cow::Borrowed(html),
     }
@@ -430,9 +451,17 @@ fn browser_error(err: String) -> String {
 /// Opens a tab with a transparent background and returns its session id.
 fn new_tab(browser: &mut Browser) -> Result<String, String> {
     let target = browser
-        .call("Target.createTarget", json!({ "url": "about:blank" }), None, STEP_TIMEOUT)
+        .call(
+            "Target.createTarget",
+            json!({ "url": "about:blank" }),
+            None,
+            STEP_TIMEOUT,
+        )
         .map_err(browser_error)?;
-    let target_id = target["targetId"].as_str().ok_or("browser: no target id")?.to_string();
+    let target_id = target["targetId"]
+        .as_str()
+        .ok_or("browser: no target id")?
+        .to_string();
     let attached = browser
         .call(
             "Target.attachToTarget",
@@ -441,7 +470,10 @@ fn new_tab(browser: &mut Browser) -> Result<String, String> {
             STEP_TIMEOUT,
         )
         .map_err(browser_error)?;
-    let session = attached["sessionId"].as_str().ok_or("browser: no session id")?.to_string();
+    let session = attached["sessionId"]
+        .as_str()
+        .ok_or("browser: no session id")?
+        .to_string();
     browser
         .call("Page.enable", json!({}), Some(&session), STEP_TIMEOUT)
         .map_err(browser_error)?;
@@ -457,7 +489,11 @@ fn new_tab(browser: &mut Browser) -> Result<String, String> {
 }
 
 fn tones(style: &PageStyle) -> &'static Tones {
-    if style.dark { &DARK_TONES } else { &LIGHT_TONES }
+    if style.dark {
+        &DARK_TONES
+    } else {
+        &LIGHT_TONES
+    }
 }
 
 fn hex((r, g, b): Rgb) -> String {
@@ -466,7 +502,8 @@ fn hex((r, g, b): Rgb) -> String {
 
 /// `amount` of colour `a` mixed into `b`, as hex.
 fn mix(a: Rgb, b: Rgb, amount: f64) -> String {
-    let channel = |x: u8, y: u8| (f64::from(x) * amount + f64::from(y) * (1.0 - amount)).round() as u8;
+    let channel =
+        |x: u8, y: u8| (f64::from(x) * amount + f64::from(y) * (1.0 - amount)).round() as u8;
     hex((channel(a.0, b.0), channel(a.1, b.1), channel(a.2, b.2)))
 }
 
@@ -560,7 +597,9 @@ fn mermaid_config(style: &PageStyle) -> Value {
         .map(|(key, value)| (key.to_string(), Value::String(value)))
         .collect();
     variables.insert("darkMode".to_string(), Value::Bool(style.dark));
-    let palette = [t.accent, t.ok, t.warn, t.violet, t.info, t.err].map(hex).join(", ");
+    let palette = [t.accent, t.ok, t.warn, t.violet, t.info, t.err]
+        .map(hex)
+        .join(", ");
     variables.insert(
         "xyChart".to_string(),
         json!({

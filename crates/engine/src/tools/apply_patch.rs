@@ -3,7 +3,6 @@
 
 use crate::safety::PatchPermissions;
 use crate::safety::SafetyCheck;
-use codex_model_provider_info::WireApi;
 use crate::safety::assess_patch_safety;
 use crate::session::Session;
 use crate::tools::ToolError;
@@ -17,6 +16,7 @@ use codex_apply_patch::ApplyPatchFileChange;
 use codex_apply_patch::ApplyPatchOptions;
 use codex_apply_patch::MaybeApplyPatchVerified;
 use codex_file_system::LOCAL_FS;
+use codex_model_provider_info::WireApi;
 use codex_protocol::models::FunctionCallOutputPayload;
 use codex_protocol::protocol::ApplyPatchApprovalRequestEvent;
 use codex_protocol::protocol::EventMsg;
@@ -213,7 +213,9 @@ async fn execute_verified_patch(
         // Files the user already approved for the session need no new question.
         SafetyCheck::AskUser => {
             let approved = sess.patch_approved_paths.lock().await;
-            patch_paths(&action).iter().all(|path| approved.contains(path))
+            patch_paths(&action)
+                .iter()
+                .all(|path| approved.contains(path))
         }
         SafetyCheck::Reject { reason } => {
             return Err(ToolError::RespondToModel(format!(

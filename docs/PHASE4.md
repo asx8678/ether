@@ -13,7 +13,7 @@ Facts from the installed `@moonmath-ai/zro` 0.2.2 package:
 ## Provider and model
 
 - [x] Built-in `zro` provider: base URL above, `env_key = "ZRO_API_KEY"`, `wire_api = "chat_completions"`.
-- [x] `ModelProfile` entries for GLM 5.3 (and 5.2): context window, output limit, truncation policy, reasoning support; function-form `apply_patch`.
+- [x] `ModelProfile` entries for GLM 5.3 (and 5.2): context window, truncation policy, reasoning support (no output limit is sent: the provider's default applies, and a cut-off response is handled as described in DECISIONS); function-form `apply_patch`.
 - [x] Model client chosen by the provider's wire API (`ether-llm`), so the CLI no longer hard-codes the Responses client.
 
 ## Chat Completions client (`ether-llm`)

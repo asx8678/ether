@@ -16,12 +16,12 @@ use codex_model_provider_info::ModelProviderInfo;
 use codex_model_provider_info::WireApi;
 use codex_protocol::config_types::Verbosity;
 use codex_protocol::models::ResponseItem;
+use codex_utils_redacted_string::RedactedString;
 use futures::future::BoxFuture;
 use serde::Serialize;
 use serde_json::Value;
 use std::io::Write;
 use std::path::Path;
-use codex_utils_redacted_string::RedactedString;
 use std::sync::Arc;
 use std::sync::Mutex;
 

@@ -4,23 +4,23 @@
 
 mod app;
 mod devtools;
-mod launch;
-mod prompt_history;
 mod html_fence;
 mod html_image;
 mod kitty_diacritics;
+mod launch;
+mod prompt_history;
 mod tui;
-mod view_renderer;
 mod ui_spec_cell;
+mod view_renderer;
 
 pub use app::run;
-pub use launch::Launch;
-pub use launch::SessionEntry;
-pub use launch::SessionHost;
 pub use html_image::terminal_is_dark;
 pub use html_image::view_instructions;
 pub use html_image::view_width_px;
 pub use html_image::views_available;
+pub use launch::Launch;
+pub use launch::SessionEntry;
+pub use launch::SessionHost;
 pub use ui_spec_cell::render_ui_plain;
 
 #[allow(dead_code, unused_imports, unused_variables)]

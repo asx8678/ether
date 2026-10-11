@@ -279,7 +279,6 @@ struct ClosureTerminator {
 
 impl ChildTerminator for ClosureTerminator {
     fn signal(&mut self, signal: ProcessSignal) -> io::Result<()> {
-
         Err(unsupported_signal(signal))
     }
 
@@ -436,9 +435,7 @@ pub fn spawn_from_driver(driver: ProcessDriver) -> SpawnedProcess {
 
     let handle = ProcessHandle::new(
         writer_tx,
-        Box::new(ClosureTerminator {
-            inner: terminator,
-        }),
+        Box::new(ClosureTerminator { inner: terminator }),
         reader_handle,
         stderr_reader_handle
             .map(|handle| handle.abort_handle())

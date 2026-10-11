@@ -1,5 +1,6 @@
 # Phase 6: render_ui. Response 1 sends an invalid spec (a row with too few cells); response 2 fixes it; response 3 answers.
 # Try: ETHER_HOME=$(mktemp -d) ether --replay <this file> "show the workspace stats"
+# render_ui is off when the TUI draws HTML views (kitty or Ghostty with Chrome); there, run with ETHER_IMAGES=0 or set [ui] render_tool = true.
 # Response 1: an invalid table row.
 {"type": "response.created", "response": {"id": "resp_1"}}
 {"type": "response.output_item.done", "output_index": 0, "item": {"type": "function_call", "id": "fc_resp_1", "call_id": "call_ui_1", "name": "render_ui", "arguments": "{\"view_id\": \"stats\", \"spec\": {\"type\": \"column\", \"children\": [{\"type\": \"table\", \"headers\": [\"Crate\", \"Lines\"], \"rows\": [[\"engine\"]]}]}}"}}

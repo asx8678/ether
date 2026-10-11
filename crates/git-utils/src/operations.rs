@@ -1,3 +1,4 @@
+// Modified from OpenAI Codex (codex-rs/git-utils/src/operations.rs @ 806d973): Windows null-device branch removed.
 use std::ffi::OsStr;
 use std::ffi::OsString;
 use std::path::Path;
@@ -7,7 +8,7 @@ use codex_protocol::shell_environment::scrub_non_inheritable_env_vars;
 
 use crate::GitToolingError;
 
-const DISABLED_HOOKS_PATH: &str = if cfg!(windows) { "NUL" } else { "/dev/null" };
+const DISABLED_HOOKS_PATH: &str = "/dev/null";
 
 /// Encodes Git overrides without treating equals signs in keys as separators.
 pub fn git_config_override_env(

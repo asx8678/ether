@@ -1,4 +1,4 @@
-// Modified from OpenAI Codex (codex-rs/tui/src/terminal_probe.rs @ 806d973): removed unit tests; removed Windows-only code.
+// Modified from OpenAI Codex (codex-rs/tui/src/terminal_probe.rs @ 806d973): removed unit tests; removed Windows-only code; test-only Windows replay module removed.
 //! Short, best-effort terminal response probes for TUI startup and resume.
 //!
 //! Crossterm's public helpers wait up to two seconds for terminal responses. That is too long for
@@ -19,10 +19,6 @@ mod startup_replay;
 
 #[cfg(unix)]
 mod terminal_identity;
-
-#[cfg(any(windows, test))]
-#[path = "terminal_probe/windows_replay.rs"]
-mod windows_replay;
 
 /// Default wall-clock budget for each terminal probe or startup probe group.
 pub(crate) const DEFAULT_TIMEOUT: Duration = Duration::from_millis(/*millis*/ 250);
@@ -552,7 +548,6 @@ mod imp {
             .enumerate()
             .filter_map(move |(idx, window)| (window == needle).then_some(idx))
     }
-
 }
 
 #[cfg(any(unix, windows, test))]

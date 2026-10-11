@@ -28,12 +28,8 @@ pub(crate) struct BundledBwrapLauncher {
 
 pub(crate) fn launcher() -> Option<BundledBwrapLauncher> {
     let current_exe = std::env::current_exe().ok()?;
-    find_program(
-        &current_exe,
-        Path::new("."),
-        |key| std::env::var_os(key),
-    )
-    .map(|program| BundledBwrapLauncher { program })
+    find_program(&current_exe, Path::new("."), |key| std::env::var_os(key))
+        .map(|program| BundledBwrapLauncher { program })
 }
 
 /// Discover the bundled fallback for an explicit launcher and its environment.

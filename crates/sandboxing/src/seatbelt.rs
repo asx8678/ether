@@ -39,9 +39,7 @@ pub(crate) enum SeatbeltPreparationError {
 impl std::fmt::Display for SeatbeltPreparationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::FileSystem(message) => {
-                f.write_str(message)
-            }
+            Self::FileSystem(message) => f.write_str(message),
         }
     }
 }

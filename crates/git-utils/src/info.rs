@@ -1,4 +1,4 @@
-// Modified from OpenAI Codex (codex-rs/git-utils/src/info.rs @ 806d973): removed unit tests.
+// Modified from OpenAI Codex (codex-rs/git-utils/src/info.rs @ 806d973): removed unit tests; Windows null-device branches removed.
 use std::collections::BTreeMap;
 use std::collections::HashSet;
 use std::path::Path;
@@ -39,7 +39,7 @@ pub fn get_git_repo_root(base_dir: &Path) -> Option<PathBuf> {
 
 /// Timeout for git commands to prevent freezing on large repositories
 const GIT_COMMAND_TIMEOUT: TokioDuration = TokioDuration::from_secs(5);
-const DISABLED_HOOKS_PATH: &str = if cfg!(windows) { "NUL" } else { "/dev/null" };
+const DISABLED_HOOKS_PATH: &str = "/dev/null";
 
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema, TS)]
 pub struct GitInfo {
@@ -741,7 +741,7 @@ async fn diff_against_sha(cwd: &Path, sha: &GitSha) -> Option<String> {
 
         if !untracked.is_empty() {
             // Use platform-appropriate null device and guard paths with `--`.
-            let null_device: &str = if cfg!(windows) { "NUL" } else { "/dev/null" };
+            let null_device: &str = "/dev/null";
             let futures_iter = untracked.into_iter().map(|file| async move {
                 let file_owned = file;
                 let args_vec: Vec<&str> = vec![

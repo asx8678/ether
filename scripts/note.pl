@@ -1,4 +1,5 @@
 #!/usr/bin/perl
+# New in ether: provenance-note helper.
 # note.pl FILE SOURCE WHAT: add or extend the first-line "Modified from OpenAI Codex" note in place.
 # SOURCE is "codex-rs/<path> @ <sha>". Uses `#` for .toml files and `//` otherwise.
 use strict;

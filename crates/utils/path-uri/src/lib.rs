@@ -977,7 +977,6 @@ pub enum PathConvention {
 }
 
 impl PathConvention {
-
     /// Returns the path convention used by the current process.
     #[cfg(unix)]
     pub const fn native() -> Self {

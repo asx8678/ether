@@ -1,4 +1,4 @@
-// New in ether: plain-text command line front end for the engine (replaced by the TUI in Phase 5).
+// New in ether: the `ether` binary: the TUI on a terminal (Phase 5), and a plain-text front end for pipes, files and `--no-tui`.
 //! `ether [PROMPT]` runs one turn and exits; without a prompt it reads one prompt per line.
 //! Ctrl-C interrupts the running turn; Ctrl-D ends the session. `--resume` / `--last` continue a
 //! recorded session.
@@ -151,11 +151,10 @@ async fn main() -> anyhow::Result<()> {
     let use_tui = !cli.no_tui && std::io::stdin().is_terminal() && std::io::stdout().is_terminal();
     if use_tui && ether_tui::views_available() {
         // The TUI draws ```view blocks; tell the model (render_ui then defaults to off).
-        config.display_instructions =
-            Some(ether_tui::view_instructions(
-                ether_tui::terminal_is_dark(),
-                ether_tui::view_width_px(),
-            ));
+        config.display_instructions = Some(ether_tui::view_instructions(
+            ether_tui::terminal_is_dark(),
+            ether_tui::view_width_px(),
+        ));
     }
     let ether_home = config.ether_home.clone();
     let host = Arc::new(Sessions {
@@ -222,7 +221,10 @@ async fn interactive(engine: &mut Engine, printer: &mut Printer, input: &mut Inp
             Ok(Some(line)) => line,
             Ok(None) => return,
             Err(err) => {
-                eprintln!("{}", printer.paint(&format!("cannot read input: {err}"), "31"));
+                eprintln!(
+                    "{}",
+                    printer.paint(&format!("cannot read input: {err}"), "31")
+                );
                 return;
             }
         };

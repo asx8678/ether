@@ -21,6 +21,7 @@ pub use bwrap::find_pre_sandbox_executable_in_path;
 pub use bwrap::find_system_bwrap_in_path;
 #[cfg(target_os = "linux")]
 pub use bwrap::system_bwrap_warning;
+use codex_protocol::error::CodexErr;
 pub use denial::is_likely_executor_managed_sandbox_denied;
 pub use denial::is_likely_sandbox_denied;
 pub use linux_pid_namespace::LinuxSandboxPidNamespace;
@@ -47,7 +48,6 @@ pub use violation::SandboxViolationBackend;
 pub use violation::SandboxViolationEvent;
 pub use violation::record_filesystem_sandbox_violation;
 pub use violation::record_sandbox_violation;
-use codex_protocol::error::CodexErr;
 
 #[cfg(not(target_os = "linux"))]
 pub fn system_bwrap_warning(

@@ -62,7 +62,6 @@ async fn wait_for_git_command_with_timeout_output(
 
     match result {
         Ok(Ok(output)) => {
-
             #[cfg(unix)]
             {
                 process_tree.armed = false;

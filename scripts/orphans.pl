@@ -1,4 +1,5 @@
 #!/usr/bin/perl
+# New in ether: finds files no crate root reaches.
 # orphans.pl: find .rs files in a crate that no crate root reaches through `mod`
 # declarations (#[path] and include!("x.rs") are followed). With --delete, remove them
 # and any directories left empty. Also reports `mod` declarations whose file is missing.

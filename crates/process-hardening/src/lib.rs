@@ -20,7 +20,6 @@ pub fn pre_main_hardening() {
     // On FreeBSD and OpenBSD, apply similar hardening to Linux/macOS:
     #[cfg(any(target_os = "freebsd", target_os = "openbsd"))]
     pre_main_hardening_bsd();
-
 }
 
 #[cfg(any(target_os = "linux", target_os = "android"))]

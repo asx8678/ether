@@ -8,7 +8,7 @@ About 23k non-test lines of the TUI's rendering code, with these cuts:
 
 - `keymap`: kept with its default bindings only (the textarea is built on it); its config types are a local copy of `codex-rs/config/src/tui_keymap.rs`. No user keymap config.
 - `codex-terminal-detection`: the few functions used are copied locally instead of copying the crate.
-- Desktop notifications, clipboard integration (stand-in types only), inline visualizations (stand-in), Mermaid rendering (fences render as source) and Codex's `tui.rs` terminal setup: not copied; ether's `tui.rs` sets up the terminal, lifting the viewport-growth logic (`tui/scrollback.rs`).
+- Desktop notifications, clipboard integration (stand-in types only), inline visualizations (stand-in), Mermaid rendering (fences rendered as source in this phase; since Phase 6 they are drawn as images by the view renderer) and Codex's `tui.rs` terminal setup: not copied; ether's `tui.rs` sets up the terminal, lifting the viewport-growth logic (`tui/scrollback.rs`).
 
 ## Work
 

@@ -1,4 +1,5 @@
 #!/usr/bin/perl
+# New in ether: strips test and Windows-only items from copied files.
 # strip-cfg.pl: remove Rust items gated by #[cfg(test)] and, with --windows, by
 # Windows-only cfgs: #[cfg(windows)], #[cfg(target_os = "windows")], #[cfg(all(windows, ...))].
 #

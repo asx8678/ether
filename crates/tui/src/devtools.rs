@@ -161,7 +161,10 @@ impl Browser {
 
     fn read_message(&mut self, deadline: Instant, waiting_for: &str) -> Result<Value, String> {
         loop {
-            if let Some(offset) = self.buffer[self.scanned..].iter().position(|byte| *byte == 0) {
+            if let Some(offset) = self.buffer[self.scanned..]
+                .iter()
+                .position(|byte| *byte == 0)
+            {
                 let end = self.scanned + offset;
                 let message = serde_json::from_slice(&self.buffer[..end])
                     .map_err(|err| format!("bad DevTools message: {err}"));

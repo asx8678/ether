@@ -32,8 +32,8 @@ use ratatui::layout::Rect;
 use ratatui::layout::Size;
 use scrollback::ScrollbackStrategy;
 use std::io;
-use std::io::Write;
 use std::io::Stdout;
+use std::io::Write;
 use std::io::stdout;
 
 pub(crate) type Terminal = custom_terminal::Terminal<CrosstermBackend<Stdout>>;

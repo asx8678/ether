@@ -1,4 +1,4 @@
-// `RetryAfter` is copied from OpenAI Codex (codex-rs/http-client/src/retry_after.rs @ 806d973).
+// Modified from OpenAI Codex (codex-rs/http-client/src/retry_after.rs @ 806d973): `RetryAfter` copied; `HttpError` new in ether.
 // `HttpError` is new: it replaces codex-http-client's `RouteAwareRequestError` with a
 // transport-neutral error that model clients build from their own HTTP errors.
 //! HTTP error types shared by protocol errors and model clients.

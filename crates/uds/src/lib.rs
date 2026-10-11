@@ -60,7 +60,6 @@ pub struct UnixStream {
 }
 
 impl UnixStream {
-
     /// Connects to `socket_path`.
     pub async fn connect(socket_path: impl AsRef<Path>) -> IoResult<Self> {
         platform::connect_stream(socket_path.as_ref())

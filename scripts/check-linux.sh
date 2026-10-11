@@ -1,4 +1,5 @@
 #!/bin/sh
+# New in ether: Linux type-check helper.
 # Type-check the Linux-only sandbox crates from macOS (no Linux C toolchain needed).
 # CODEX_SKIP_BWRAP_BUILD skips compiling vendored bubblewrap; CARGO_FEATURE_PURE makes blake3
 # (via execpolicy -> starlark) use its pure-Rust backend instead of NEON C code.

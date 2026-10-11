@@ -1,4 +1,5 @@
 #!/usr/bin/perl
+# New in ether: strips test, bench and Windows sections from copied manifests.
 # toml-strip.pl: remove test, bench and Windows-only sections from a crate's Cargo.toml
 # in place: [dev-dependencies], [target.*.dev-dependencies], [[bench]], [[test]], [[example]],
 # and [target.'cfg(windows)'.*] / [target.'cfg(target_os = "windows")'.*] tables.

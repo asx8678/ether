@@ -1,4 +1,4 @@
-// Copied from OpenAI Codex (codex-rs/network-proxy/src/{network_policy,config,environment_policy}.rs @ 806d973)
+// Modified from OpenAI Codex (codex-rs/network-proxy/src/{network_policy,config,environment_policy}.rs @ 806d973): data types only, copied unchanged
 // and modified: only the data types codex-protocol needs; proxy runtime and config methods removed.
 //! Network-proxy data types used by the protocol. ether does not ship the network proxy.
 

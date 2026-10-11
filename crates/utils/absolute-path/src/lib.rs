@@ -1,4 +1,4 @@
-// Modified from OpenAI Codex (codex-rs/utils/absolute-path/src/lib.rs @ 806d973): removed unit tests.
+// Modified from OpenAI Codex (codex-rs/utils/absolute-path/src/lib.rs @ 806d973): removed unit tests; Windows branches removed.
 use dirs::home_dir;
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -35,10 +35,6 @@ impl AbsolutePathBuf {
                 return home;
             } else if let Some(rest) = rest.strip_prefix('/') {
                 return home.join(rest.trim_start_matches('/'));
-            } else if cfg!(windows)
-                && let Some(rest) = rest.strip_prefix('\\')
-            {
-                return home.join(rest.trim_start_matches('\\'));
             }
         }
         path.to_path_buf()
@@ -146,13 +142,6 @@ impl AbsolutePathBuf {
 }
 
 fn normalize_path_for_platform(path: &Path) -> Cow<'_, Path> {
-    if cfg!(windows)
-        && let Some(path) = path.to_str()
-        && let Some(normalized) = normalize_windows_device_path(path)
-    {
-        return Cow::Owned(PathBuf::from(normalized));
-    }
-
     Cow::Borrowed(path)
 }
 
@@ -257,18 +246,7 @@ pub mod test_support {
     ///
     /// On Windows, `/tmp/example` maps to `C:\tmp\example`.
     pub fn test_path_buf(unix_path: &str) -> PathBuf {
-        if cfg!(windows) {
-            let mut path = PathBuf::from(r"C:\");
-            path.extend(
-                unix_path
-                    .trim_start_matches('/')
-                    .split('/')
-                    .filter(|segment| !segment.is_empty()),
-            );
-            path
-        } else {
-            PathBuf::from(unix_path)
-        }
+        PathBuf::from(unix_path)
     }
 
     /// Extension methods for converting paths into [`AbsolutePathBuf`] values in tests.

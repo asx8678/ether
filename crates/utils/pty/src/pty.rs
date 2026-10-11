@@ -1,4 +1,4 @@
-// Modified from OpenAI Codex (codex-rs/utils/pty/src/pty.rs @ 806d973): removed unit tests; removed Windows-only code.
+// Modified from OpenAI Codex (codex-rs/utils/pty/src/pty.rs @ 806d973): removed unit tests; removed Windows-only code; Windows slave-handle branch removed.
 use std::collections::HashMap;
 #[cfg(unix)]
 use std::fs::File;
@@ -126,7 +126,6 @@ impl ChildTerminator for RawPidTerminator {
 }
 
 fn platform_native_pty_system() -> Box<dyn portable_pty::PtySystem + Send> {
-
     #[cfg(not(windows))]
     {
         native_pty_system()
@@ -272,11 +271,7 @@ async fn spawn_process_portable(
     });
 
     let handles = PtyHandles {
-        _slave: if cfg!(windows) {
-            Some(pair.slave)
-        } else {
-            None
-        },
+        _slave: None,
         _master: PtyMasterHandle::Resizable(pair.master),
     };
 

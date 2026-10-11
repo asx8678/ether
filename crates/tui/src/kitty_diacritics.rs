@@ -2,6 +2,7 @@
 // `rowcolumn-diacritics.txt` (kitty 0.49.2, GPL-3.0 project; this list of Unicode code points is data).
 //! Diacritic `n` marks row (or column) `n` of an image placeholder cell.
 
+#[rustfmt::skip]
 pub(crate) const ROW_COLUMN_DIACRITICS: [char; 297] = [
     '\u{0305}', '\u{030D}', '\u{030E}', '\u{0310}', '\u{0312}', '\u{033D}', '\u{033E}', '\u{033F}',
     '\u{0346}', '\u{034A}', '\u{034B}', '\u{034C}', '\u{0350}', '\u{0351}', '\u{0352}', '\u{0357}',

@@ -1,4 +1,4 @@
-// Modified from OpenAI Codex (codex-rs/utils/path-utils/src/lib.rs @ 806d973): removed unit tests.
+// Modified from OpenAI Codex (codex-rs/utils/path-utils/src/lib.rs @ 806d973): removed unit tests; the native flag is always false (no Windows).
 //! Path normalization, replacement, symlink resolution, and atomic writes.
 
 pub(crate) mod env;
@@ -53,7 +53,7 @@ where
 }
 
 pub fn normalize_for_native_workdir(path: impl AsRef<Path>) -> PathBuf {
-    normalize_for_native_workdir_with_flag(path.as_ref().to_path_buf(), cfg!(windows))
+    normalize_for_native_workdir_with_flag(path.as_ref().to_path_buf(), /*is_windows*/ false)
 }
 
 pub struct SymlinkWritePaths {

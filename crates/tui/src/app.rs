@@ -11,6 +11,8 @@ use crate::exec_cell::CommandOutput;
 use crate::exec_cell::ExecCell;
 use crate::exec_cell::new_active_exec_command;
 use crate::history_cell;
+use crate::history_cell::HistoryCell;
+use crate::history_cell::HistoryRenderMode;
 use crate::html_fence::BlockKind;
 use crate::html_fence::FenceOutput;
 use crate::html_fence::HtmlFenceFilter;
@@ -22,15 +24,13 @@ use crate::launch::Launch;
 use crate::launch::SessionEntry;
 use crate::launch::SessionHost;
 use crate::prompt_history::PromptHistory;
-use crate::view_renderer::ViewRenderer;
-use crate::view_renderer::ViewResult;
-use crate::history_cell::HistoryCell;
-use crate::history_cell::HistoryRenderMode;
 use crate::streaming::controller::StreamController;
 use crate::terminal_hyperlinks::HyperlinkLine;
 use crate::terminal_hyperlinks::visible_lines;
 use crate::tui::Tui;
 use crate::ui_spec_cell::UiSpecCell;
+use crate::view_renderer::ViewRenderer;
+use crate::view_renderer::ViewResult;
 use codex_protocol::items::AgentMessageContent;
 use codex_protocol::items::TurnItem;
 use codex_protocol::protocol::EventMsg;
@@ -385,7 +385,10 @@ impl App {
 
     fn on_app_event(&mut self, event: AppEvent) {
         match event {
-            AppEvent::FileMatches { query, matches: found } => {
+            AppEvent::FileMatches {
+                query,
+                matches: found,
+            } => {
                 if let Some(Popup::Files {
                     query: shown,
                     matches,
@@ -554,7 +557,9 @@ impl App {
             return false;
         };
         let (len, selected) = match popup {
-            Popup::Files { matches, selected, .. } => (matches.len(), selected),
+            Popup::Files {
+                matches, selected, ..
+            } => (matches.len(), selected),
             Popup::Sessions { entries, selected } => {
                 (entries.as_ref().map_or(0, Vec::len), selected)
             }
@@ -614,7 +619,9 @@ impl App {
         let cursor = self.composer.cursor().min(text.len());
         let start = text[..cursor]
             .rfind(char::is_whitespace)
-            .map_or(0, |index| index + text[index..].chars().next().map_or(1, char::len_utf8));
+            .map_or(0, |index| {
+                index + text[index..].chars().next().map_or(1, char::len_utf8)
+            });
         let word = &text[start..cursor];
         let Some(query) = word.strip_prefix('@').filter(|query| !query.is_empty()) else {
             if matches!(self.popup, Some(Popup::Files { .. })) {
@@ -688,7 +695,10 @@ impl App {
                     format!("model     {} via {}", self.model, self.provider),
                     format!("directory {}", self.cwd.display()),
                     format!("session   {}", self.session_id),
-                    format!("tokens    {}", tokens.unwrap_or_else(|| "none yet".to_string())),
+                    format!(
+                        "tokens    {}",
+                        tokens.unwrap_or_else(|| "none yet".to_string())
+                    ),
                 ];
                 if let Some(path) = &self.rollout_path {
                     lines.push(format!("recorded  {}", path.display()));
@@ -717,7 +727,10 @@ impl App {
                 let sessions = self.sessions.clone();
                 let tx = self.app_tx.clone();
                 tokio::spawn(async move {
-                    let entries = sessions.list_sessions().await.map_err(|err| format!("{err:#}"));
+                    let entries = sessions
+                        .list_sessions()
+                        .await
+                        .map_err(|err| format!("{err:#}"));
                     let _ = tx.send(AppEvent::Sessions(entries));
                 });
             }
@@ -1101,18 +1114,20 @@ impl App {
         self.answer_streamed = false;
     }
 
-    fn show_view(&mut self, kind: BlockKind, source: String, result: Result<RenderedImage, String>) {
+    fn show_view(
+        &mut self,
+        kind: BlockKind,
+        source: String,
+        result: Result<RenderedImage, String>,
+    ) {
         match result {
             Ok(image) => {
                 let id = html_image::new_image_id();
-                self.pending_raw.push(html_image::transmit(
-                    &image.png,
-                    id,
-                    image.cols,
-                    image.rows,
-                ));
+                self.pending_raw
+                    .push(html_image::transmit(&image.png, id, image.cols, image.rows));
                 self.finish_stream();
-                self.pending_history.push(Box::new(ImageCell::new(id, &image)));
+                self.pending_history
+                    .push(Box::new(ImageCell::new(id, &image)));
                 if !image.issues.is_empty() {
                     // The view kit's checks, for the user (and for a later repair round).
                     self.pending_history
@@ -1466,7 +1481,12 @@ impl App {
         };
         match &self.popup {
             None => Vec::new(),
-            Some(Popup::Files { matches, selected, query, .. }) => {
+            Some(Popup::Files {
+                matches,
+                selected,
+                query,
+                ..
+            }) => {
                 if matches.is_empty() {
                     return vec![Line::from(format!("  no files match @{query}").dim())];
                 }
@@ -1488,9 +1508,16 @@ impl App {
                 let first = selected.saturating_sub(POPUP_ROWS - 1);
                 let mut lines = vec![Line::from("Resume a session".bold())];
                 lines.extend(entries.iter().enumerate().skip(first).take(POPUP_ROWS).map(
-                    |(index, entry)| row(index == *selected, format!("{}  {}", entry.updated, entry.preview)),
+                    |(index, entry)| {
+                        row(
+                            index == *selected,
+                            format!("{}  {}", entry.updated, entry.preview),
+                        )
+                    },
                 ));
-                lines.push(Line::from("  ↑/↓ choose · enter resumes · esc cancels".dim()));
+                lines.push(Line::from(
+                    "  ↑/↓ choose · enter resumes · esc cancels".dim(),
+                ));
                 lines
             }
         }
@@ -1532,7 +1559,11 @@ fn info_block(text: &str) -> history_cell::PlainHistoryCell {
         .lines()
         .enumerate()
         .map(|(index, line)| {
-            let gutter: Span<'static> = if index == 0 { "• ".dim() } else { "  ".into() };
+            let gutter: Span<'static> = if index == 0 {
+                "• ".dim()
+            } else {
+                "  ".into()
+            };
             Line::from(vec![gutter, line.to_string().into()])
         })
         .collect();

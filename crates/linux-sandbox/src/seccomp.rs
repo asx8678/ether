@@ -97,7 +97,9 @@ enum NetworkSeccompMode {
     VmSocketRestricted,
 }
 
-fn network_seccomp_mode(network_sandbox_policy: NetworkSandboxPolicy) -> Option<NetworkSeccompMode> {
+fn network_seccomp_mode(
+    network_sandbox_policy: NetworkSandboxPolicy,
+) -> Option<NetworkSeccompMode> {
     (!network_sandbox_policy.is_enabled()).then_some(NetworkSeccompMode::Restricted)
 }
 

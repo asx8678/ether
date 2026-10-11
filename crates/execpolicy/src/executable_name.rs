@@ -2,7 +2,6 @@
 use std::path::Path;
 
 pub(crate) fn executable_lookup_key(raw: &str) -> String {
-
     #[cfg(not(windows))]
     {
         raw.to_string()

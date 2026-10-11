@@ -31,8 +31,16 @@ impl PageStyle {
     /// From the terminal's default colours when known; otherwise a dark background is assumed.
     pub(crate) fn from_terminal(fg: Option<(u8, u8, u8)>, bg: Option<(u8, u8, u8)>) -> Self {
         let dark = bg.is_none_or(|(r, g, b)| is_dark(r, g, b));
-        let fg = fg.unwrap_or(if dark { (0xe4, 0xe4, 0xe4) } else { (0x1f, 0x1f, 0x1f) });
-        let bg = bg.unwrap_or(if dark { (0x1d, 0x1f, 0x21) } else { (0xff, 0xff, 0xff) });
+        let fg = fg.unwrap_or(if dark {
+            (0xe4, 0xe4, 0xe4)
+        } else {
+            (0x1f, 0x1f, 0x1f)
+        });
+        let bg = bg.unwrap_or(if dark {
+            (0x1d, 0x1f, 0x21)
+        } else {
+            (0xff, 0xff, 0xff)
+        });
         Self { fg, bg, dark }
     }
 }
