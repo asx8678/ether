@@ -9,7 +9,7 @@ Where ether stands, and what comes next. Details live in the phase docs and DECI
 - Phase 7 (daily driver): prompt history, resume shows the conversation, slash commands, `@` file mentions, release binary installed at `~/.cargo/bin/ether`.
 - Full review (2026-10-11) and fixes in three batches: untrusted project config limited to safe keys, approval queue, turn abort/shutdown ordering, chat retry/truncation, 429 and overflow handling, TUI ordering and layout, plain-mode exit status, third-party notices, doc drift, Windows leftovers.
 - Phase 8 (quick wins from prime-agent): wider overflow detection, `prompt_cache_key`, quota parking and jitter, `/copy`, OSC 133 prompt marks, exit robustness. See PHASE8.md.
-- Pushed to `origin/main` (github.com/asx8678/ether) up to the review fixes; the status note and Phase 8 are local commits, not pushed yet.
+- Everything pushed to `origin/main` (github.com/asx8678/ether).
 
 ## Open decisions (waiting on you)
 
